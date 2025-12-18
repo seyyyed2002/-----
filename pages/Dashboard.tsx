@@ -541,7 +541,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
 
       {/* Floating Action Button for Save */}
       {!isReadOnly && (
-        <div className="sticky bottom-24 pb-4 flex justify-center z-10 pointer-events-none">
+        <div className="fixed bottom-24 left-0 right-0 max-w-3xl mx-auto pb-4 flex justify-center z-40 pointer-events-none">
             <button
                 onClick={handleSave}
                 disabled={isSaving}

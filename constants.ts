@@ -26,8 +26,8 @@ export const DEEDS: DeedDefinition[] = [
   { id: 'golden_night_prayer', title: 'نماز شب', type: 'golden' }, // +20, 2 Stars
   { id: 'golden_father_hand', title: 'بوسیدن دست پدر', type: 'golden' }, // +20, 2 Stars
   { id: 'golden_mother_hand', title: 'بوسیدن دست مادر', type: 'golden' }, // +20, 2 Stars
-  { id: 'golden_salawat', title: '۱۰۰ صلوات برای سلامتی امام زمان (عج)', type: 'golden' }, // +10
-  { id: 'golden_parents', title: 'خوشحال کردن پدر و مادر (غیر از دست‌بوسی)', type: 'golden' }, // +10
+  { id: 'golden_salawat', title: '۱۰۰ تا صلوات', type: 'golden' }, // +10
+  { id: 'golden_parents', title: 'خوشحال کردن پدر و مادر', type: 'golden' }, // +10
   { id: 'golden_others', title: 'خوشحال کردن دیگران', type: 'golden' }, // +10
 ];
 

@@ -30,7 +30,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
   }, [currentAmoud]);
 
   return (
-    <div className="min-h-screen flex flex-col font-sans transition-colors duration-300">
+    <div className="min-h-screen flex flex-col font-sans transition-colors duration-300 overflow-x-hidden">
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 shadow-sm sticky top-0 z-50 border-b border-gray-100 dark:border-gray-800 transition-colors duration-300">
         <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -68,7 +68,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 pb-safe pt-2 px-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-[100] transform-gpu transition-colors duration-300">
+      <nav
+        className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 pt-2 px-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-[100] transform-gpu transition-colors duration-300"
+        style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
+      >
         <div className="max-w-3xl mx-auto flex justify-between items-center pb-2 overflow-x-auto gap-1">
           <button
             onClick={() => onTabChange('dashboard')}

@@ -286,7 +286,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
   const persianDate = new Date(date).toLocaleDateString('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <div className="space-y-6 animate-fade-in relative">
+    <div className="space-y-6 relative">
         
       {/* Toast Notification for Qada Added */}
       {showQadaAdded && (
@@ -541,7 +541,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
 
       {/* Floating Action Button for Save */}
       {!isReadOnly && (
-        <div className="sticky bottom-24 pb-4 flex justify-center z-10 pointer-events-none">
+        <div className="fixed bottom-24 left-0 right-0 max-w-3xl mx-auto pb-4 flex justify-center z-[90] pointer-events-none">
             <button
                 onClick={handleSave}
                 disabled={isSaving}

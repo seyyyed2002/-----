@@ -19,7 +19,7 @@ const saveToMemory = (key: string, value: any) => {
 
 // --- Supabase Sync Helpers ---
 
-// Assuming we have a table 'user_data' with columns: key (text), value (jsonb), updated_at (timestamptz)
+// Assuming we have a table 'app_data' with columns: key (text), value (jsonb), updated_at (timestamptz)
 // Or distinct tables for each type of data.
 // For simplicity and "blob" storage migration, we will use a key-value store approach in Supabase if possible,
 // or map them to specific tables.
@@ -46,7 +46,7 @@ async function upsertToSupabase(key: string, data: any) {
     }
 
     const { error } = await supabase
-        .from('user_data')
+        .from('app_data')
         .upsert({ key, value: data, updated_at: new Date().toISOString() }, { onConflict: 'key' });
 
     if (error) {
@@ -58,7 +58,7 @@ async function fetchFromSupabase(key: string): Promise<any | null> {
     if (!isSupabaseConfigured()) return null;
 
     const { data, error } = await supabase
-        .from('user_data')
+        .from('app_data')
         .select('value')
         .eq('key', key)
         .single();

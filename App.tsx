@@ -7,6 +7,7 @@ import { HistoryPage } from './pages/HistoryPage';
 import { QadaPage } from './pages/QadaPage';
 import { ToolsPage } from './pages/ToolsPage';
 import { LevelsPage } from './pages/LevelsPage';
+import { syncAllFromSupabase } from './services/storage';
 
 type Tab = 'dashboard' | 'calendar' | 'history' | 'qada' | 'tools' | 'levels';
 
@@ -14,8 +15,14 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [selectedDate, setSelectedDate] = useState<string | undefined>(undefined);
   const [isDark, setIsDark] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(true);
 
   useEffect(() => {
+    // Initial Sync
+    syncAllFromSupabase().then(() => {
+      setIsSyncing(false);
+    });
+
     const saved = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     if (saved === 'dark' || (!saved && prefersDark)) {
@@ -56,6 +63,17 @@ function App() {
     // Let's keep it simple: Calendar clicks go to Dashboard.
     setActiveTab('dashboard');
   };
+
+  if (isSyncing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm opacity-70">در حال همگام‌سازی...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Layout activeTab={activeTab} onTabChange={setActiveTab} isDark={isDark} toggleTheme={toggleTheme}>

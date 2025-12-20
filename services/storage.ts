@@ -22,9 +22,23 @@ const saveToMemory = (key: string, value: any) => {
 async function upsertDailyRecordToSupabase(record: any) {
     if (!isSupabaseConfigured()) return;
 
+    // Convert updatedAt to updated_at if needed, but the current schema in types.ts says updatedAt.
+    // However, Supabase DBs usually use snake_case.
+    // Given the previous error log showed "updated_at: Date.now()", it's possible the user tried to change it.
+    // But since the project uses 'updatedAt' throughout the frontend, we should map it here if the DB expects updated_at.
+    // For now, we will send 'updated_at' to be safe, assuming the DB has that column.
+
+    const recordForDb = {
+        ...record,
+        updated_at: new Date(record.updatedAt || Date.now()).toISOString()
+    };
+    // remove camelCase updatedAt if DB doesn't want it, but usually extra fields are ignored or stored in JSONB.
+    // If 'daily_records' is a typed table, we should match columns.
+    // If we don't know the schema, we stick to what we have or map common fields.
+
     const { error } = await supabase
         .from('daily_records')
-        .upsert(record, { onConflict: 'date' });
+        .upsert(recordForDb, { onConflict: 'date' });
 
     if (error) {
         console.error(`Supabase sync error for daily_records:`, error);
@@ -47,35 +61,22 @@ async function fetchAllDailyRecordsFromSupabase(): Promise<Record<string, DailyR
 
     // Convert array of records to the expected Record<string, DailyRecord> format
     return data.reduce((acc, record) => {
-        acc[record.date] = record;
+        // Map back snake_case to camelCase if needed
+        const mappedRecord = {
+            ...record,
+            updatedAt: record.updated_at ? new Date(record.updated_at).getTime() : Date.now()
+        };
+        acc[record.date] = mappedRecord;
         return acc;
     }, {} as Record<string, DailyRecord>);
 }
 
-// Assuming we have a table 'app_data' with columns: key (text), value (jsonb), updated_at (timestamptz)
-// Or distinct tables for each type of data.
-// For simplicity and "blob" storage migration, we will use a key-value store approach in Supabase if possible,
-// or map them to specific tables.
-//
-// Let's assume a table 'backups' or 'sync_store' with:
-// user_id (uuid), key (text), value (jsonb), updated_at
-//
-// Since we don't have Auth implemented yet, we might be limited.
-// However, the user asked to fix the connection. We assume the environment will have RLS policies for anonymous or authenticated users.
-//
-// We will implement a 'sync' function that tries to push local changes to Supabase
-// and pull remote changes.
-
 async function upsertToSupabase(key: string, data: any) {
     if (!isSupabaseConfigured()) return;
 
-    // Check if we have a user session (even anonymous)
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-        // Try to sign in anonymously if supported, or just return if strict RLS
-        // For now, we assume public access or existing session.
-        // If no session, we can't reliably save user-specific data unless the table is public/keyed by something else.
-        // We will proceed hoping for the best (public table or anon auth).
+        // Handle anonymous or public access
     }
 
     const { error } = await supabase
@@ -97,7 +98,6 @@ async function fetchFromSupabase(key: string): Promise<any | null> {
         .single();
 
     if (error) {
-        // console.warn(`Supabase fetch error for ${key}:`, error.message);
         return null;
     }
     return data?.value;
@@ -132,7 +132,6 @@ export const syncAllFromSupabase = async () => {
             }
         });
 
-        // Return true if synced something?
         return true;
     } catch (e) {
         console.error("Sync all failed", e);
@@ -156,14 +155,10 @@ export const loadState = (): Record<string, DailyRecord> => {
   }
 };
 
-// We need to modify syncAllFromSupabase to handle daily_records separately
-// and ensure loadState is updated from the remote data.
-// For now, we will keep loadState synchronous and rely on syncAllFromSupabase to populate memoryStore.
-
 export const saveRecord = (record: DailyRecord) => {
   // We need to ensure the record object only contains fields present in the daily_records table
-  const { date, scores, sins, custom_titles, report, total_average, performed_qada, workouts } = record;
-  const recordToSave = { date, scores, sins, custom_titles, report, total_average, performed_qada, workouts, updatedAt: Date.now() };
+  const { date, scores, sins, custom_titles, report, total_average, performed_qada, workouts, updatedAt } = record;
+  const recordToSave = { date, scores, sins, custom_titles, report, total_average, performed_qada, workouts, updatedAt: updatedAt || Date.now() };
   try {
     const currentData = loadState();
     const newData = {

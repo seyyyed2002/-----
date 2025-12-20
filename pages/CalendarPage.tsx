@@ -81,7 +81,7 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({ onSelectDate, onSele
                 
                 const record = allRecords[dateStr];
                 const hasScore = record !== undefined;
-                const score = record?.totalAverage || 0;
+                const score = record?.total_average || 0;
                 
                 // Check if workouts exist for this day
                 const hasWorkout = record?.workouts && (Object.values(record.workouts) as number[]).some(v => v > 0);

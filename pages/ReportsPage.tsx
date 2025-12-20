@@ -95,9 +95,9 @@ export const ReportsPage: React.FC = () => {
                                     </span>
                                 </div>
 
-                                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border text-xs font-bold ${getScoreBadgeStyle(record.totalAverage)}`}>
-                                    {record.totalAverage >= 100 && <Star className="w-3 h-3 fill-current" />}
-                                    <span>امتیاز: {toPersianDigits(record.totalAverage)}</span>
+                                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border text-xs font-bold ${getScoreBadgeStyle(record.total_average)}`}>
+                                    {record.total_average >= 100 && <Star className="w-3 h-3 fill-current" />}
+                                    <span>امتیاز: {toPersianDigits(record.total_average)}</span>
                                 </div>
                             </div>
                             

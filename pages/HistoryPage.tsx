@@ -117,7 +117,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ isDark }) => {
     });
 
     const dailyData = filteredRecords.map(r => {
-        totalScoreSum += r.totalAverage;
+        totalScoreSum += r.total_average;
         
         // Sins
         const dailySinCount = (r.sins || []).length;
@@ -160,8 +160,8 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ isDark }) => {
 
         // Qada Performed Today Sum
         let qadaPerformedToday = 0;
-        if (r.performedQada) {
-            Object.entries(r.performedQada).forEach(([key, count]) => {
+        if (r.performed_qada) {
+            Object.entries(r.performed_qada).forEach(([key, count]) => {
                 performedQadaStats[key] = (performedQadaStats[key] || 0) + (count as number);
                 qadaPerformedToday += (count as number);
             });
@@ -191,7 +191,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ isDark }) => {
         return {
             date: r.date,
             name: new Date(r.date).toLocaleDateString('fa-IR', { day: 'numeric', month: 'short' }),
-            total: r.totalAverage,
+            total: r.total_average,
             sins_count: dailySinCount,
             prayer_avg: getCatAvg('prayer'),
             scalar_avg: getCatAvg('scalar'),

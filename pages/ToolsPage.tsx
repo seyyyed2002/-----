@@ -29,21 +29,12 @@ export const ToolsPage: React.FC = () => {
     
     // Load tools state
     useEffect(() => {
-        // Counter
-        const savedCounter = localStorage.getItem('tool_counter');
-        if (savedCounter) {
-            const data = JSON.parse(savedCounter);
-            setCount(data.count || 0);
-            setTarget(data.target || 100);
-        }
-
         // Challenges
         setChallenges(loadChallenges());
     }, []);
 
     const updateCount = (newVal: number) => {
         setCount(newVal);
-        localStorage.setItem('tool_counter', JSON.stringify({ count: newVal, target }));
         
         // Trigger Animation
         if (newVal > count) {
@@ -175,7 +166,6 @@ export const ToolsPage: React.FC = () => {
                                 const newTarget = prompt('هدف جدید را وارد کنید:', target.toString());
                                 if(newTarget) {
                                     setTarget(parseInt(newTarget) || 100);
-                                    localStorage.setItem('tool_counter', JSON.stringify({ count, target: parseInt(newTarget) || 100 }));
                                 }
                             }}
                             className="p-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md border border-white/20 dark:border-gray-700 rounded-full text-indigo-600 dark:text-indigo-400"

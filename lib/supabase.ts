@@ -1,5 +1,5 @@
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, SupportedStorage } from '@supabase/supabase-js';
 
 // Access environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -10,29 +10,39 @@ export const isSupabaseConfigured = () => {
     return supabaseUrl.length > 0 && supabaseKey.length > 0;
 };
 
-// Lazily create the client or creating a valid one is required.
-// If URL is empty, createClient throws.
-// We can wrap it or export a safe accessor.
+// In-memory storage implementation for Supabase Auth
+const inMemoryStorage: SupportedStorage = {
+  getItem: (key: string) => {
+    return memoryStore[key] || null;
+  },
+  setItem: (key: string, value: string) => {
+    memoryStore[key] = value;
+  },
+  removeItem: (key: string) => {
+    delete memoryStore[key];
+  }
+};
+
+const memoryStore: Record<string, string> = {};
 
 let client: SupabaseClient;
 
 if (isSupabaseConfigured()) {
-    client = createClient(supabaseUrl, supabaseKey);
+    client = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        storage: inMemoryStorage,
+        persistSession: true, // It will persist in memoryStore, effectively session-only
+        autoRefreshToken: true,
+      }
+    });
 } else {
-    // Create a dummy client or handle calls safely.
-    // However, the types are strict.
-    // We can cast a mock object, but it's risky for type safety.
-    // A better way is to check `isSupabaseConfigured` before using `supabase`.
-    // But `services/storage.ts` imports `supabase`.
-
-    // We'll create a dummy client that warns if used, OR just don't crash.
-    // To avoid crash on `createClient('', '')`, we pass dummy valid-looking strings if needed,
-    // OR we export `null` and force check.
-    // But modifying all consumers to check for null is annoying.
-
-    // Trick: export a proxy or a dummy client.
-    // If we pass a dummy URL, it won't crash until we make a request.
-    client = createClient('https://placeholder.supabase.co', 'placeholder');
+    // Create a dummy client with in-memory storage to prevent errors
+    client = createClient('https://placeholder.supabase.co', 'placeholder', {
+      auth: {
+        storage: inMemoryStorage,
+        persistSession: false
+      }
+    });
 }
 
 export const supabase = client;

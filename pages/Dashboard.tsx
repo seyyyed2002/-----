@@ -16,7 +16,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
   const [date, setDate] = useState(initialDate || getTodayStr());
   const [scores, setScores] = useState<Record<string, number>>({});
   const [sins, setSins] = useState<string[]>([]);
-  const [customTitles, setCustomTitles] = useState<Record<string, string>>({});
+  const [custom_titles, setCustomTitles] = useState<Record<string, string>>({});
   const [report, setReport] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
@@ -57,7 +57,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
     if (record) {
       setScores(record.scores);
       setReport(record.report);
-      setCustomTitles(record.customTitles || {});
+      setCustomTitles(record.custom_titles || {});
       setSins(record.sins || []);
     } else {
       const initialScores: Record<string, number> = {};
@@ -256,7 +256,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
       date,
       scores,
       sins,
-      customTitles,
+      custom_titles,
       report,
       totalAverage,
       updatedAt: Date.now()
@@ -496,7 +496,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
                 deed={deed}
                 value={scores[deed.id] || 0}
                 onChange={(val) => handleScoreChange(deed.id, val)}
-                customTitle={customTitles[deed.id]}
+                customTitle={custom_titles[deed.id]}
                 onCustomTitleChange={(title) => handleTitleChange(deed.id, title)}
                 disabled={isReadOnly}
                 onDelete={deed.isCustom ? () => handleDeleteCustomDeed(deed.id) : undefined}

@@ -68,7 +68,7 @@ export const QadaPage: React.FC = () => {
         date,
         scores: {},
         sins: [],
-        customTitles: {},
+        custom_titles: {},
         report: '',
         totalAverage: 0,
         performedQada: {},

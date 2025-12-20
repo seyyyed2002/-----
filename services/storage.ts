@@ -19,6 +19,39 @@ const saveToMemory = (key: string, value: any) => {
 
 // --- Supabase Sync Helpers ---
 
+async function upsertDailyRecordToSupabase(record: any) {
+    if (!isSupabaseConfigured()) return;
+
+    const { error } = await supabase
+        .from('daily_records')
+        .upsert(record, { onConflict: 'date' });
+
+    if (error) {
+        console.error(`Supabase sync error for daily_records:`, error);
+    }
+}
+
+async function fetchAllDailyRecordsFromSupabase(): Promise<Record<string, DailyRecord> | null> {
+    if (!isSupabaseConfigured()) return null;
+
+    const { data, error } = await supabase
+        .from('daily_records')
+        .select('*');
+
+    if (error) {
+        console.error(`Supabase fetch error for daily_records:`, error.message);
+        return null;
+    }
+
+    if (!data) return {};
+
+    // Convert array of records to the expected Record<string, DailyRecord> format
+    return data.reduce((acc, record) => {
+        acc[record.date] = record;
+        return acc;
+    }, {} as Record<string, DailyRecord>);
+}
+
 // Assuming we have a table 'app_data' with columns: key (text), value (jsonb), updated_at (timestamptz)
 // Or distinct tables for each type of data.
 // For simplicity and "blob" storage migration, we will use a key-value store approach in Supabase if possible,
@@ -75,7 +108,6 @@ export const syncAllFromSupabase = async () => {
 
     try {
         const keys = [
-            APP_STORAGE_KEY,
             APP_SETTINGS_KEY,
             APP_QADA_KEY,
             APP_WORKOUT_PR_KEY,
@@ -84,7 +116,13 @@ export const syncAllFromSupabase = async () => {
             APP_LEVEL_KEY
         ];
 
-        // Parallel fetch
+        // 1. Fetch all daily records and update memory store for APP_STORAGE_KEY
+        const dailyRecords = await fetchAllDailyRecordsFromSupabase();
+        if (dailyRecords) {
+            saveToMemory(APP_STORAGE_KEY, dailyRecords);
+        }
+
+        // 2. Parallel fetch for other app data (key-value store)
         const results = await Promise.all(keys.map(k => fetchFromSupabase(k)));
 
         // Update Memory Store if remote exists
@@ -118,19 +156,23 @@ export const loadState = (): Record<string, DailyRecord> => {
   }
 };
 
+// We need to modify syncAllFromSupabase to handle daily_records separately
+// and ensure loadState is updated from the remote data.
+// For now, we will keep loadState synchronous and rely on syncAllFromSupabase to populate memoryStore.
+
 export const saveRecord = (record: DailyRecord) => {
+  // We need to ensure the record object only contains fields present in the daily_records table
+  const { date, scores, sins, custom_titles, report, total_average, performed_qada, workouts } = record;
+  const recordToSave = { date, scores, sins, custom_titles, report, total_average, performed_qada, workouts, updated_at: Date.now() };
   try {
-    const currentData = loadState();
-    const newData = {
+    const currentData = loadStat    const newData = {
       ...currentData,
       [record.date]: record
     };
     saveToMemory(APP_STORAGE_KEY, newData);
 
     // Background Sync
-    upsertToSupabase(APP_STORAGE_KEY, newData);
-
-    return newData;
+    upsertDailyRecordToSupabase(recordToSave);    return newData;
   } catch (err) {
     console.error("Could not save state", err);
     return {};
@@ -188,8 +230,8 @@ export const removeCustomDeed = (deedId: string) => {
         };
         saveToMemory(APP_SETTINGS_KEY, newSettings);
 
-        // Background Sync
-        upsertToSupabase(APP_SETTINGS_KEY, newSettings);
+       // Background Sync
+    upsertDailyRecordToSupabase(recordToSave);Settings);
 
         return newSettings.customDeeds;
     } catch (err) {

@@ -165,14 +165,17 @@ export const saveRecord = (record: DailyRecord) => {
   const { date, scores, sins, custom_titles, report, total_average, performed_qada, workouts } = record;
   const recordToSave = { date, scores, sins, custom_titles, report, total_average, performed_qada, workouts, updated_at: Date.now() };
   try {
-    const currentData = loadStat    const newData = {
+    const currentData = loadState();
+    const newData = {
       ...currentData,
       [record.date]: record
     };
     saveToMemory(APP_STORAGE_KEY, newData);
 
     // Background Sync
-    upsertDailyRecordToSupabase(recordToSave);    return newData;
+    upsertDailyRecordToSupabase(recordToSave);
+
+    return newData;
   } catch (err) {
     console.error("Could not save state", err);
     return {};

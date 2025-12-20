@@ -9,7 +9,7 @@ const APP_LEVEL_KEY = 'muhasabah_user_level';
 const memoryStore: Record<string, any> = {};
 
 // Helper to access memory store
-const getFromMemory = (key: string) => {
+const getFromMemory = (key: string): any => {
     return memoryStore[key] || null;
 }
 
@@ -145,8 +145,8 @@ export const syncAllFromSupabase = async () => {
 
 export const loadState = (): Record<string, DailyRecord> => {
   try {
-    const data = getFromMemory(APP_STORAGE_KEY);
-    if (data === null) {
+    const data = getFromMemory(APP_STORAGE_KEY) as Record<string, DailyRecord> | null;
+    if (data === null || typeof data !== 'object') {
       return {};
     }
     return data;

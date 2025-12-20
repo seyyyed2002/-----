@@ -150,7 +150,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
   };
   // ----------------------
 
-  const totalAverage = useMemo(() => {
+  const total_average = useMemo(() => {
     let totalWeightedScore = 0;
     let totalWeight = 0;
     let goldenBonus = 0;
@@ -258,8 +258,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
       sins,
       custom_titles,
       report,
-      totalAverage,
-      updatedAt: Date.now()
+      total_average,
+      updated_at: Date.now()
     };
     saveRecord(record);
     
@@ -340,10 +340,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
       )}  
 
       {/* Date Selector & Score Card */}
-      <div className={`${getScoreColorClass(totalAverage)} rounded-3xl p-6 text-white shadow-lg relative overflow-hidden transition-all duration-700`}>
+      <div className={`${getScoreColorClass(total_average)} rounded-3xl p-6 text-white shadow-lg relative overflow-hidden transition-all duration-700`}>
          
          {/* Starry Animation for Golden Score (> 100) */}
-         {totalAverage > 100 && (
+         {total_average > 100 && (
              <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
                  {/* Rotating Background Glow */}
                  <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-gradient-to-b from-white/20 to-transparent rotate-45 animate-pulse" style={{ animationDuration: '3s' }}></div>
@@ -394,8 +394,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
 
             <div className="flex flex-col items-center mb-2">
                 <div className="flex items-end gap-3" dir="ltr">
-                    <span className={`text-6xl font-black tracking-tighter leading-none ${totalAverage > 100 ? 'drop-shadow-lg' : ''}`}>
-                        {toPersianDigits(totalAverage)}
+                    <span className={`text-6xl font-black tracking-tighter leading-none ${total_average > 100 ? 'drop-shadow-lg' : ''}`}>
+                        {toPersianDigits(total_average)}
                     </span>
                     <span className="text-xl mb-1.5 opacity-80 font-bold">/ ۱۰۰+</span>
                 </div>
@@ -412,8 +412,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
             
             <div className="w-full bg-black/20 h-2 rounded-full mt-4 overflow-hidden">
                 <div 
-                    className={`h-full transition-all duration-1000 ease-out ${totalAverage < 0 ? 'bg-red-400' : 'bg-white'}`}
-                    style={{ width: `${Math.max(0, Math.min(100, Math.abs(totalAverage)))}%` }}
+                    className={`h-full transition-all duration-1000 ease-out ${total_average < 0 ? 'bg-red-400' : 'bg-white'}`}
+                    style={{ width: `${Math.max(0, Math.min(100, Math.abs(total_average)))}%` }}
                 ></div>
             </div>
             

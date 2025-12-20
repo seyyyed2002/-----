@@ -26,10 +26,10 @@ export interface DailyRecord {
   sins?: string[]; // Array of Sin IDs (can contain duplicates)
   custom_titles?: Record<string, string>; // map deedId to custom title (legacy for golden_custom)
   report: string;
-  totalAverage: number;
-  performedQada?: Record<string, number>; // map qadaKey (fajr, etc) to count performed that day
+  total_average: number;
+  performed_qada?: Record<string, number>; // map qadaKey (fajr, etc) to count performed that day
   workouts?: Record<string, number>; // map workoutId to count/value
-  updatedAt: number; // Unix timestamp for local storage, will be converted to ISO string for Supabase
+  updated_at: number; // Unix timestamp for local storage, will be converted to ISO string for Supabase
 }
 
 export interface AppSettings {

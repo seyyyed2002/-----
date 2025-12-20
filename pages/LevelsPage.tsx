@@ -56,7 +56,7 @@ export const LevelsPage: React.FC = () => {
             let status: 'pending' | 'success' | 'fail' = 'pending';
             
             if (record) {
-                const cond1 = record.totalAverage >= 90;
+                const cond1 = record.total_average >= 90;
                 const cond2 = !Object.values(record.scores).some(s => s === -100);
                 const gaze = record.scores['gaze_control'] || 0;
                 const truth = record.scores['truthfulness'] || 0;

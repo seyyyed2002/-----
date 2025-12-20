@@ -101,7 +101,7 @@ export const WorkoutPage: React.FC<WorkoutPageProps> = ({ initialDate, onDateCha
         // Save Daily Record
         const record = getRecord(date) || createEmptyRecord(date);
         record.workouts = numericWorkouts;
-        record.updatedAt = Date.now(); // Ensure refresh
+        record.updated_at = Date.now(); // Ensure refresh
         saveRecord(record);
 
         // Save PRs if changed
@@ -157,11 +157,11 @@ export const WorkoutPage: React.FC<WorkoutPageProps> = ({ initialDate, onDateCha
         date: dateStr,
         scores: {},
         sins: [],
-        customTitles: {},
+        custom_titles: {},
         report: '',
-        totalAverage: 0,
+        total_average: 0,
         workouts: {},
-        updatedAt: Date.now()
+        updated_at: Date.now()
     });
 
     const changeDate = (days: number) => {

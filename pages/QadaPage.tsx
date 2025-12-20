@@ -29,8 +29,8 @@ export const QadaPage: React.FC = () => {
         // Load today's performed counts
         const todayStr = getTodayStr();
         const record = getRecord(todayStr);
-        if (record && record.performedQada) {
-            setPerformedToday(record.performedQada);
+        if (record && record.performed_qada) {
+            setPerformedToday(record.performed_qada);
         }
     }, []);
 
@@ -50,15 +50,15 @@ export const QadaPage: React.FC = () => {
             const todayStr = getTodayStr();
             const record = getRecord(todayStr) || createEmptyRecord(todayStr);
             
-            const currentPerformed = record.performedQada?.[key] || 0;
+            const currentPerformed = record.performed_qada?.[key] || 0;
             const newPerformed = currentPerformed + 1;
             
             const updatedPerformedMap = {
-                ...(record.performedQada || {}),
+                ...(record.performed_qada || {}),
                 [key]: newPerformed
             };
             
-            record.performedQada = updatedPerformedMap;
+            record.performed_qada = updatedPerformedMap;
             saveRecord(record);
             setPerformedToday(updatedPerformedMap);
         }
@@ -70,9 +70,9 @@ export const QadaPage: React.FC = () => {
         sins: [],
         custom_titles: {},
         report: '',
-        totalAverage: 0,
-        performedQada: {},
-        updatedAt: Date.now()
+        total_average: 0,
+        performed_qada: {},
+        updated_at: Date.now()
     });
 
     // Uniform configuration for all items

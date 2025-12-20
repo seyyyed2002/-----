@@ -5,6 +5,18 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const APP_LEVEL_KEY = 'muhasabah_user_level';
 
+// In-memory store
+const memoryStore: Record<string, any> = {};
+
+// Helper to access memory store
+const getFromMemory = (key: string) => {
+    return memoryStore[key] || null;
+}
+
+const saveToMemory = (key: string, value: any) => {
+    memoryStore[key] = value;
+}
+
 // --- Supabase Sync Helpers ---
 
 // Assuming we have a table 'user_data' with columns: key (text), value (jsonb), updated_at (timestamptz)
@@ -75,10 +87,10 @@ export const syncAllFromSupabase = async () => {
         // Parallel fetch
         const results = await Promise.all(keys.map(k => fetchFromSupabase(k)));
 
-        // Update LocalStorage if remote exists
+        // Update Memory Store if remote exists
         results.forEach((val, index) => {
             if (val) {
-                localStorage.setItem(keys[index], JSON.stringify(val));
+                saveToMemory(keys[index], val);
             }
         });
 
@@ -95,11 +107,11 @@ export const syncAllFromSupabase = async () => {
 
 export const loadState = (): Record<string, DailyRecord> => {
   try {
-    const serializedState = localStorage.getItem(APP_STORAGE_KEY);
-    if (serializedState === null) {
+    const data = getFromMemory(APP_STORAGE_KEY);
+    if (data === null) {
       return {};
     }
-    return JSON.parse(serializedState);
+    return data;
   } catch (err) {
     console.error("Could not load state", err);
     return {};
@@ -113,7 +125,7 @@ export const saveRecord = (record: DailyRecord) => {
       ...currentData,
       [record.date]: record
     };
-    localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(newData));
+    saveToMemory(APP_STORAGE_KEY, newData);
 
     // Background Sync
     upsertToSupabase(APP_STORAGE_KEY, newData);
@@ -133,15 +145,14 @@ export const getRecord = (date: string): DailyRecord | null => {
 // Settings (Custom Deeds)
 export const loadSettings = (): AppSettings => {
     try {
-        const serialized = localStorage.getItem(APP_SETTINGS_KEY);
-        if (serialized === null) {
+        const data = getFromMemory(APP_SETTINGS_KEY);
+        if (data === null) {
             return { customDeeds: [] };
         }
-        const parsed = JSON.parse(serialized);
-        if (!Array.isArray(parsed.customDeeds)) {
+        if (!Array.isArray(data.customDeeds)) {
             return { customDeeds: [] };
         }
-        return parsed;
+        return data;
     } catch (err) {
         console.error("Could not load settings", err);
         return { customDeeds: [] };
@@ -155,7 +166,7 @@ export const saveCustomDeed = (deed: DeedDefinition) => {
             ...settings,
             customDeeds: [...(settings.customDeeds || []), deed]
         };
-        localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(newSettings));
+        saveToMemory(APP_SETTINGS_KEY, newSettings);
 
         // Background Sync
         upsertToSupabase(APP_SETTINGS_KEY, newSettings);
@@ -175,7 +186,7 @@ export const removeCustomDeed = (deedId: string) => {
             ...settings,
             customDeeds: currentList.filter(d => d.id !== deedId)
         };
-        localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(newSettings));
+        saveToMemory(APP_SETTINGS_KEY, newSettings);
 
         // Background Sync
         upsertToSupabase(APP_SETTINGS_KEY, newSettings);
@@ -190,15 +201,14 @@ export const removeCustomDeed = (deedId: string) => {
 // Workout Settings
 export const loadWorkoutSettings = (): WorkoutSettings => {
     try {
-        const serialized = localStorage.getItem(APP_WORKOUT_SETTINGS_KEY);
-        if (serialized === null) {
+        const data = getFromMemory(APP_WORKOUT_SETTINGS_KEY);
+        if (data === null) {
             return { customWorkouts: [] };
         }
-        const parsed = JSON.parse(serialized);
-        if (!Array.isArray(parsed.customWorkouts)) {
+        if (!Array.isArray(data.customWorkouts)) {
             return { customWorkouts: [] };
         }
-        return parsed;
+        return data;
     } catch (err) {
         console.error("Could not load workout settings", err);
         return { customWorkouts: [] };
@@ -212,7 +222,7 @@ export const saveCustomWorkout = (workout: WorkoutDefinition) => {
             ...settings,
             customWorkouts: [...(settings.customWorkouts || []), workout]
         };
-        localStorage.setItem(APP_WORKOUT_SETTINGS_KEY, JSON.stringify(newSettings));
+        saveToMemory(APP_WORKOUT_SETTINGS_KEY, newSettings);
 
         // Background Sync
         upsertToSupabase(APP_WORKOUT_SETTINGS_KEY, newSettings);
@@ -232,7 +242,7 @@ export const removeCustomWorkout = (workoutId: string) => {
             ...settings,
             customWorkouts: currentList.filter(w => w.id !== workoutId)
         };
-        localStorage.setItem(APP_WORKOUT_SETTINGS_KEY, JSON.stringify(newSettings));
+        saveToMemory(APP_WORKOUT_SETTINGS_KEY, newSettings);
 
         // Background Sync
         upsertToSupabase(APP_WORKOUT_SETTINGS_KEY, newSettings);
@@ -247,11 +257,11 @@ export const removeCustomWorkout = (workoutId: string) => {
 // Qada Storage
 export const loadQada = (): QadaCounts => {
     try {
-        const serialized = localStorage.getItem(APP_QADA_KEY);
-        if (serialized === null) {
+        const data = getFromMemory(APP_QADA_KEY);
+        if (data === null) {
             return { fajr: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0, ayat: 0, fasting: 0 };
         }
-        return JSON.parse(serialized);
+        return data;
     } catch (err) {
         return { fajr: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0, ayat: 0, fasting: 0 };
     }
@@ -259,7 +269,7 @@ export const loadQada = (): QadaCounts => {
 
 export const saveQada = (data: QadaCounts) => {
     try {
-        localStorage.setItem(APP_QADA_KEY, JSON.stringify(data));
+        saveToMemory(APP_QADA_KEY, data);
 
         // Background Sync
         upsertToSupabase(APP_QADA_KEY, data);
@@ -272,8 +282,8 @@ export const saveQada = (data: QadaCounts) => {
 // Workout PR Storage
 export const loadWorkoutPRs = (): Record<string, number> => {
     try {
-        const serialized = localStorage.getItem(APP_WORKOUT_PR_KEY);
-        return serialized ? JSON.parse(serialized) : {};
+        const data = getFromMemory(APP_WORKOUT_PR_KEY);
+        return data ? data : {};
     } catch (err) {
         return {};
     }
@@ -281,7 +291,7 @@ export const loadWorkoutPRs = (): Record<string, number> => {
 
 export const saveWorkoutPRs = (prs: Record<string, number>) => {
     try {
-        localStorage.setItem(APP_WORKOUT_PR_KEY, JSON.stringify(prs));
+        saveToMemory(APP_WORKOUT_PR_KEY, prs);
 
         // Background Sync
         upsertToSupabase(APP_WORKOUT_PR_KEY, prs);
@@ -294,11 +304,11 @@ export const saveWorkoutPRs = (prs: Record<string, number>) => {
 // Level Storage
 export const loadUserLevel = (): UserLevel => {
     try {
-        const serialized = localStorage.getItem(APP_LEVEL_KEY);
-        if (serialized === null) {
+        const data = getFromMemory(APP_LEVEL_KEY);
+        if (data === null) {
             return { currentAmoud: 1, lastCheckDate: '' };
         }
-        return JSON.parse(serialized);
+        return data;
     } catch (err) {
         return { currentAmoud: 1, lastCheckDate: '' };
     }
@@ -306,7 +316,7 @@ export const loadUserLevel = (): UserLevel => {
 
 export const saveUserLevel = (level: UserLevel) => {
     try {
-        localStorage.setItem(APP_LEVEL_KEY, JSON.stringify(level));
+        saveToMemory(APP_LEVEL_KEY, level);
 
         // Background Sync
         upsertToSupabase(APP_LEVEL_KEY, level);
@@ -319,8 +329,8 @@ export const saveUserLevel = (level: UserLevel) => {
 // Challenges Storage
 export const loadChallenges = (): Challenge[] => {
     try {
-        const serialized = localStorage.getItem(APP_CHALLENGES_KEY);
-        return serialized ? JSON.parse(serialized) : [];
+        const data = getFromMemory(APP_CHALLENGES_KEY);
+        return data ? data : [];
     } catch (err) {
         return [];
     }
@@ -328,7 +338,7 @@ export const loadChallenges = (): Challenge[] => {
 
 export const saveChallenges = (challenges: Challenge[]) => {
     try {
-        localStorage.setItem(APP_CHALLENGES_KEY, JSON.stringify(challenges));
+        saveToMemory(APP_CHALLENGES_KEY, challenges);
 
         // Background Sync
         upsertToSupabase(APP_CHALLENGES_KEY, challenges);

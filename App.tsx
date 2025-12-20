@@ -23,9 +23,8 @@ function App() {
       setIsSyncing(false);
     });
 
-    const saved = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (saved === 'dark' || (!saved && prefersDark)) {
+    if (prefersDark) {
       setIsDark(true);
       document.documentElement.classList.add('dark');
     } else {
@@ -37,11 +36,9 @@ function App() {
   const toggleTheme = () => {
     if (isDark) {
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
       setIsDark(false);
     } else {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
       setIsDark(true);
     }
   };

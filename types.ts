@@ -24,12 +24,12 @@ export interface DailyRecord {
   date: string; // ISO string YYYY-MM-DD
   scores: Record<string, number>; // map deedId to score
   sins?: string[]; // Array of Sin IDs (can contain duplicates)
-  customTitles?: Record<string, string>; // map deedId to custom title (legacy for golden_custom)
+  custom_titles?: Record<string, string>; // map deedId to custom title (legacy for golden_custom)
   report: string;
   totalAverage: number;
   performedQada?: Record<string, number>; // map qadaKey (fajr, etc) to count performed that day
   workouts?: Record<string, number>; // map workoutId to count/value
-  updatedAt: number;
+  updatedAt: number; // Unix timestamp for local storage, will be converted to ISO string for Supabase
 }
 
 export interface AppSettings {

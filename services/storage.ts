@@ -163,7 +163,7 @@ export const loadState = (): Record<string, DailyRecord> => {
 export const saveRecord = (record: DailyRecord) => {
   // We need to ensure the record object only contains fields present in the daily_records table
   const { date, scores, sins, custom_titles, report, total_average, performed_qada, workouts } = record;
-  const recordToSave = { date, scores, sins, custom_titles, report, total_average, performed_qada, workouts, updated_at: Date.now() };
+  const recordToSave = { date, scores, sins, custom_titles, report, total_average, performed_qada, workouts, updatedAt: Date.now() };
   try {
     const currentData = loadState();
     const newData = {

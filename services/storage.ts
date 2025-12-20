@@ -234,7 +234,7 @@ export const removeCustomDeed = (deedId: string) => {
         saveToMemory(APP_SETTINGS_KEY, newSettings);
 
        // Background Sync
-    upsertDailyRecordToSupabase(recordToSave);Settings);
+        upsertToSupabase(APP_SETTINGS_KEY, newSettings);
 
         return newSettings.customDeeds;
     } catch (err) {

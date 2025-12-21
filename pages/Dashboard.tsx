@@ -519,7 +519,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
       </div>
 
       {/* Report Section */}
-      <div className={`bg-white dark:bg-gray-800 p-4 rounded-2xl border shadow-sm transition-all duration-300 mt-6 ${showValidationError ? 'border-red-400 ring-2 ring-red-100 dark:ring-red-900/20' : 'border-gray-100 dark:border-gray-700'}`}>
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm transition-all duration-300 mt-6">
         <div className="flex justify-between items-center mb-2">
             <label className="block text-gray-700 dark:text-gray-200 font-medium flex items-center gap-2">
                 گزارش به امام زمان (عج)
@@ -538,7 +538,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
             onChange={(e) => !isReadOnly && setReport(e.target.value)}
             placeholder={isReadOnly ? "گزارشی ثبت نشده است." : "دل‌نوشته یا گزارش اعمال امروز..."}
             disabled={isReadOnly}
-            className={`w-full h-32 p-3 rounded-xl border border-gray-200 dark:border-gray-600 outline-none resize-none text-gray-600 dark:text-gray-300 text-sm leading-relaxed transition-colors placeholder-gray-400 dark:placeholder-gray-500 ${isReadOnly ? 'bg-gray-50 dark:bg-gray-900 cursor-not-allowed' : 'bg-white dark:bg-gray-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500'}`}
+            className={`w-full h-32 p-3 rounded-xl border outline-none resize-none text-gray-600 dark:text-gray-300 text-sm leading-relaxed transition-colors placeholder-gray-400 dark:placeholder-gray-500 ${
+                showValidationError
+                    ? 'border-red-400 ring-2 ring-red-100 dark:ring-red-900/20'
+                    : 'border-gray-200 dark:border-gray-600'
+            } ${
+                isReadOnly
+                    ? 'bg-gray-50 dark:bg-gray-900 cursor-not-allowed'
+                    : 'bg-white dark:bg-gray-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500'
+            }`}
         />
       </div>
 

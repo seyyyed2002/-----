@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BookHeart, ChevronLeft, Volume2, VolumeX, RotateCcw, Target, Trophy, Flame, Dumbbell, Plus, Trash2, CheckCircle, Calendar, X, AlertTriangle, Sparkles } from 'lucide-react';
 import { ReportsPage } from './ReportsPage'; 
 import { WorkoutPage } from './WorkoutPage';
-import { toPersianDigits, getTodayStr } from '../constants';
+import { toPersianDigits, toEnglishDigits, getTodayStr } from '../constants';
 import { Challenge } from '../types';
 import { loadChallenges, saveChallenges } from '../services/storage';
 
@@ -28,7 +28,12 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
     const [target, setTarget] = useState(100);
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [clickAnim, setClickAnim] = useState(false);
+    const [isTargetModalOpen, setIsTargetModalOpen] = useState(false);
+    const [tempTarget, setTempTarget] = useState('');
     
+    // Audio Context Ref
+    const audioCtxRef = useRef<AudioContext | null>(null);
+
     // --- Challenge Tool Logic ---
     const [challenges, setChallenges] = useState<Challenge[]>([]);
     const [isAddChallengeOpen, setIsAddChallengeOpen] = useState(false);
@@ -44,28 +49,52 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
         setChallenges(loadChallenges());
     }, []);
 
-    const playClickSound = () => {
-        try {
-            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-            if (!AudioContext) return;
+    // Initialize Audio Context on first interaction
+    const initAudio = () => {
+        if (!audioCtxRef.current) {
+            try {
+                const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+                if (AudioContext) {
+                    audioCtxRef.current = new AudioContext();
+                }
+            } catch (e) {
+                console.error("Audio init failed", e);
+            }
+        }
+        if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+            audioCtxRef.current.resume();
+        }
+    };
 
-            const ctx = new AudioContext();
+    const playClickSound = () => {
+        if (!soundEnabled) return;
+        initAudio(); // Ensure context is ready
+
+        try {
+            const ctx = audioCtxRef.current;
+            if (!ctx) return;
+
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
 
             osc.connect(gain);
             gain.connect(ctx.destination);
 
-            // Soft pleasant click (sine wave with pitch drop)
+            // Soft "Bubble" / Modern UI Click
+            const now = ctx.currentTime;
+
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(800, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.08);
+            // Start higher and drop quickly for a "pop" effect
+            osc.frequency.setValueAtTime(800, now);
+            osc.frequency.exponentialRampToValueAtTime(400, now + 0.08);
 
-            gain.gain.setValueAtTime(0.15, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+            // Very short and soft envelope
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.15, now + 0.01); // Soft attack
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08); // Quick decay
 
-            osc.start();
-            osc.stop(ctx.currentTime + 0.1);
+            osc.start(now);
+            osc.stop(now + 0.09);
         } catch (e) {
             console.error("Audio play failed", e);
         }
@@ -80,10 +109,19 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
             setTimeout(() => setClickAnim(false), 150);
         }
 
-        if (newVal > 0 && soundEnabled) {
-            if (navigator.vibrate) navigator.vibrate(15);
+        if (newVal > 0) {
+            if (navigator.vibrate && soundEnabled) navigator.vibrate(15);
             if (newVal > count) playClickSound();
         }
+    };
+
+    const handleTargetSave = () => {
+        if (tempTarget) {
+            // tempTarget is already stored as English digits due to onChange logic
+            const val = parseInt(tempTarget);
+            if (val > 0) setTarget(val);
+        }
+        setIsTargetModalOpen(false);
     };
 
     // Challenge Functions
@@ -202,10 +240,8 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
                     <div className="flex gap-2">
                          <button 
                             onClick={() => {
-                                const newTarget = prompt('هدف جدید را وارد کنید:', target.toString());
-                                if(newTarget) {
-                                    setTarget(parseInt(newTarget) || 100);
-                                }
+                                setTempTarget(target.toString());
+                                setIsTargetModalOpen(true);
                             }}
                             className="p-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md border border-white/20 dark:border-gray-700 rounded-full text-indigo-600 dark:text-indigo-400"
                         >
@@ -219,6 +255,49 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
                         </button>
                     </div>
                 </div>
+
+                {/* Target Modal */}
+                {isTargetModalOpen && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+                         <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-xl border border-gray-100 dark:border-gray-700">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">تعیین هدف شمارش</h3>
+                                <button onClick={() => setIsTargetModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="mb-6">
+                                <label className="block text-xs font-medium text-gray-500 mb-1">تعداد هدف</label>
+                                <input
+                                    type="tel"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    value={tempTarget}
+                                    onChange={(e) => setTempTarget(e.target.value)}
+                                    className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 outline-none text-center font-bold text-lg"
+                                    autoFocus
+                                    placeholder="مثال: ۱۰۰"
+                                />
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setIsTargetModalOpen(false)}
+                                    className="flex-1 py-2 rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                                >
+                                    انصراف
+                                </button>
+                                <button
+                                    onClick={handleTargetSave}
+                                    className="flex-1 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition"
+                                >
+                                    تایید
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="flex-1 flex flex-col items-center justify-center gap-10 z-10">
                     {/* Main Counter Display */}
@@ -350,11 +429,14 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
                                 <div>
                                     <label className="block text-xs font-medium text-gray-500 mb-1">مدت زمان (روز)</label>
                                     <input 
-                                        type="number" 
+                                        type="tel"
                                         inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        value={newChallengeDays}
-                                        onChange={(e) => setNewChallengeDays(Number(e.target.value))}
+                                        value={toPersianDigits(newChallengeDays)}
+                                        onChange={(e) => {
+                                            const englishVal = toEnglishDigits(e.target.value);
+                                            const numericVal = englishVal.replace(/[^0-9]/g, '');
+                                            setNewChallengeDays(Number(numericVal) || 0);
+                                        }}
                                         className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-orange-500 outline-none"
                                     />
                                 </div>

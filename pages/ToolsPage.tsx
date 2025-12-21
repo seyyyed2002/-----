@@ -44,6 +44,33 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
         setChallenges(loadChallenges());
     }, []);
 
+    const playClickSound = () => {
+        try {
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContext) return;
+
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            // Soft pleasant click (sine wave with pitch drop)
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.08);
+
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+
+            osc.start();
+            osc.stop(ctx.currentTime + 0.1);
+        } catch (e) {
+            console.error("Audio play failed", e);
+        }
+    };
+
     const updateCount = (newVal: number) => {
         setCount(newVal);
         
@@ -53,8 +80,9 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
             setTimeout(() => setClickAnim(false), 150);
         }
 
-        if (newVal > 0 && soundEnabled && navigator.vibrate) {
-            navigator.vibrate(15); 
+        if (newVal > 0 && soundEnabled) {
+            if (navigator.vibrate) navigator.vibrate(15);
+            if (newVal > count) playClickSound();
         }
     };
 
@@ -323,6 +351,8 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
                                     <label className="block text-xs font-medium text-gray-500 mb-1">مدت زمان (روز)</label>
                                     <input 
                                         type="number" 
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         value={newChallengeDays}
                                         onChange={(e) => setNewChallengeDays(Number(e.target.value))}
                                         className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-orange-500 outline-none"

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BookHeart, ChevronLeft, Volume2, VolumeX, RotateCcw, Target, Trophy, Flame, Dumbbell, Plus, Trash2, CheckCircle, Calendar, X, AlertTriangle, Sparkles } from 'lucide-react';
 import { ReportsPage } from './ReportsPage'; 
 import { WorkoutPage } from './WorkoutPage';
-import { toPersianDigits, getTodayStr } from '../constants';
+import { toPersianDigits, toEnglishDigits, getTodayStr } from '../constants';
 import { Challenge } from '../types';
 import { loadChallenges, saveChallenges } from '../services/storage';
 
@@ -80,21 +80,21 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
             osc.connect(gain);
             gain.connect(ctx.destination);
 
-            // Improved "Woodblock" / Mechanical Click
-            // Short sine wave with quick decay, lower pitch
+            // Soft "Bubble" / Modern UI Click
             const now = ctx.currentTime;
 
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(600, now);
-            osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+            // Start higher and drop quickly for a "pop" effect
+            osc.frequency.setValueAtTime(800, now);
+            osc.frequency.exponentialRampToValueAtTime(400, now + 0.08);
 
-            // Short envelope
+            // Very short and soft envelope
             gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(0.3, now + 0.01); // Attack
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1); // Decay
+            gain.gain.linearRampToValueAtTime(0.15, now + 0.01); // Soft attack
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08); // Quick decay
 
             osc.start(now);
-            osc.stop(now + 0.1);
+            osc.stop(now + 0.09);
         } catch (e) {
             console.error("Audio play failed", e);
         }
@@ -117,7 +117,8 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
 
     const handleTargetSave = () => {
         if (tempTarget) {
-            const val = parseInt(tempTarget.replace(/[^0-9]/g, ''));
+            // tempTarget is already stored as English digits due to onChange logic
+            const val = parseInt(tempTarget);
             if (val > 0) setTarget(val);
         }
         setIsTargetModalOpen(false);
@@ -430,12 +431,11 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
                                     <input 
                                         type="tel"
                                         inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        value={newChallengeDays}
+                                        value={toPersianDigits(newChallengeDays)}
                                         onChange={(e) => {
-                                            // Ensure only numbers
-                                            const val = e.target.value.replace(/[^0-9]/g, '');
-                                            setNewChallengeDays(Number(val));
+                                            const englishVal = toEnglishDigits(e.target.value);
+                                            const numericVal = englishVal.replace(/[^0-9]/g, '');
+                                            setNewChallengeDays(Number(numericVal) || 0);
                                         }}
                                         className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-orange-500 outline-none"
                                     />

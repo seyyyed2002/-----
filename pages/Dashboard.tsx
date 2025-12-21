@@ -72,37 +72,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
 
   const handleScoreChange = (id: string, val: number) => {
     if (isReadOnly) return;
-    
-    // Auto Increment Qada logic
-    // If the value changes TO -100 (Qada) from something else, increment Qada count
-    if (val === -100 && scores[id] !== -100) {
-        const qadaData = loadQada();
-        let added = false;
-        
-        switch(id) {
-            case 'prayer_fajr':
-                qadaData.fajr += 1;
-                added = true;
-                break;
-            case 'prayer_dhuhr':
-                qadaData.dhuhr += 1;
-                qadaData.asr += 1; // Add both Dhuhr and Asr
-                added = true;
-                break;
-            case 'prayer_maghrib':
-                qadaData.maghrib += 1;
-                qadaData.isha += 1; // Add both Maghrib and Isha
-                added = true;
-                break;
-        }
-
-        if (added) {
-            saveQada(qadaData);
-            setShowQadaAdded(true);
-            setTimeout(() => setShowQadaAdded(false), 3000);
-        }
-    }
-
     setScores(prev => ({ ...prev, [id]: val }));
   };
 
@@ -252,6 +221,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
     }
 
     setIsSaving(true);
+
+    // Update Qada based on changes
+    const originalRecord = getRecord(date);
+    const originalScores = originalRecord?.scores || {};
+    const qadaData = loadQada();
+    let qadaChanged = false;
+
+    // Helper to check Qada logic
+    const updateQadaForPrayer = (key: string, qadaKeys: ('fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha')[]) => {
+        const isNowQada = scores[key] === -100;
+        const wasQada = originalScores[key] === -100;
+
+        if (isNowQada && !wasQada) {
+            // Added Qada
+            qadaKeys.forEach(k => qadaData[k] += 1);
+            qadaChanged = true;
+        } else if (!isNowQada && wasQada) {
+            // Removed Qada
+            qadaKeys.forEach(k => qadaData[k] = Math.max(0, qadaData[k] - 1));
+            qadaChanged = true;
+        }
+    };
+
+    updateQadaForPrayer('prayer_fajr', ['fajr']);
+    updateQadaForPrayer('prayer_dhuhr', ['dhuhr', 'asr']);
+    updateQadaForPrayer('prayer_maghrib', ['maghrib', 'isha']);
+
+    if (qadaChanged) {
+        saveQada(qadaData);
+        if (Object.values(scores).some(v => v === -100) && !Object.values(originalScores).some(v => v === -100)) {
+             // Only show added toast if it was a net addition (simplification) or just let it save silently as part of global save
+        }
+    }
+
     const record: DailyRecord = {
       date,
       scores,

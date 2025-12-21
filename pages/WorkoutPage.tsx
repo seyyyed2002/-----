@@ -3,7 +3,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { WORKOUTS, getTodayStr, toPersianDigits, toEnglishDigits } from '../constants';
 import { getRecord, saveRecord, loadWorkoutPRs, saveWorkoutPRs, loadWorkoutSettings, saveCustomWorkout, removeCustomWorkout } from '../services/storage';
 import { DailyRecord, WorkoutDefinition } from '../types';
-import { Dumbbell, Trophy, Plus, Trash2, X, ChevronLeft, ChevronRight, Save, Check } from 'lucide-react';
+import { Dumbbell, Trophy, Plus, Trash2, X, ChevronLeft, ChevronRight, Save, Check, Lock } from 'lucide-react';
 
 interface WorkoutPageProps {
     initialDate?: string;
@@ -180,6 +180,7 @@ export const WorkoutPage: React.FC<WorkoutPageProps> = ({ initialDate, onDateCha
 
     const persianDate = new Date(date).toLocaleDateString('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const today = getTodayStr();
+    const isReadOnly = date < today;
 
     return (
         <div className="space-y-6 animate-fade-in pb-20 relative">
@@ -192,6 +193,14 @@ export const WorkoutPage: React.FC<WorkoutPageProps> = ({ initialDate, onDateCha
                         {date === today ? 'تمرینات امروز' : 'آرشیو تمرینات'}
                     </h2>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{persianDate}</div>
+                    {isReadOnly && (
+                        <div className="flex justify-center mt-1">
+                            <div className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1 text-gray-500">
+                                <Lock className="w-2.5 h-2.5" />
+                                <span>غیر قابل ویرایش</span>
+                            </div>
+                        </div>
+                    )}
                  </div>
                  <button 
                     onClick={() => changeDate(1)} 
@@ -269,13 +278,15 @@ export const WorkoutPage: React.FC<WorkoutPageProps> = ({ initialDate, onDateCha
                     <Dumbbell className="w-5 h-5" />
                     <h3 className="font-bold">ثبت فعالیت‌ها</h3>
                 </div>
-                <button 
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="flex items-center gap-1 text-xs bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 px-3 py-1.5 rounded-full hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition"
-                >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>تمرین جدید</span>
-                </button>
+                {!isReadOnly && (
+                    <button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="flex items-center gap-1 text-xs bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 px-3 py-1.5 rounded-full hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition"
+                    >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>تمرین جدید</span>
+                    </button>
+                )}
             </div>
 
             {/* Workout List */}
@@ -297,7 +308,7 @@ export const WorkoutPage: React.FC<WorkoutPageProps> = ({ initialDate, onDateCha
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
                                         <span className="font-bold text-gray-700 dark:text-gray-200">{workout.title}</span>
-                                        {workout.isCustom && (
+                                        {workout.isCustom && !isReadOnly && (
                                             <button 
                                                 onClick={() => handleDeleteWorkout(workout.id)}
                                                 className="text-gray-300 hover:text-red-400 transition"
@@ -324,7 +335,8 @@ export const WorkoutPage: React.FC<WorkoutPageProps> = ({ initialDate, onDateCha
                                         value={displayValue}
                                         onChange={(e) => handleInputChange(workout.id, e.target.value)}
                                         placeholder="۰"
-                                        className="w-20 text-center font-bold text-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-1 focus:ring-2 focus:ring-cyan-500 outline-none text-gray-800 dark:text-gray-100 placeholder-gray-300"
+                                        disabled={isReadOnly}
+                                        className={`w-20 text-center font-bold text-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-1 focus:ring-2 focus:ring-cyan-500 outline-none text-gray-800 dark:text-gray-100 placeholder-gray-300 ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     />
                                     <span className="text-xs text-gray-400 w-8 text-center">{workout.unit}</span>
                                 </div>
@@ -335,6 +347,7 @@ export const WorkoutPage: React.FC<WorkoutPageProps> = ({ initialDate, onDateCha
             </div>
             
             {/* Save Button */}
+            {!isReadOnly && (
             <div className={`fixed bottom-24 left-1/2 transform -translate-x-1/2 transition-all duration-300 z-20 ${hasChanges ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'}`}>
                  <button
                     onClick={handleSave}
@@ -358,6 +371,7 @@ export const WorkoutPage: React.FC<WorkoutPageProps> = ({ initialDate, onDateCha
                     )}
                 </button>
             </div>
+            )}
 
         </div>
     );

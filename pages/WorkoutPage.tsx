@@ -66,6 +66,8 @@ export const WorkoutPage: React.FC<WorkoutPageProps> = ({ initialDate, onDateCha
         const englishVal = toEnglishDigits(valStr);
         const numericVal = englishVal.replace(/[^0-9]/g, '');
 
+        if (numericVal.length > 3) return;
+
         setFormValues(prev => ({
             ...prev,
             [workoutId]: numericVal

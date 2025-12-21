@@ -438,6 +438,7 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
                                         onChange={(e) => {
                                             const englishVal = toEnglishDigits(e.target.value);
                                             const numericVal = englishVal.replace(/[^0-9]/g, '');
+                                            if (numericVal.length > 3) return;
                                             setNewChallengeDays(Number(numericVal) || 0);
                                         }}
                                         className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-orange-500 outline-none"

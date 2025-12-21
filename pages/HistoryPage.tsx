@@ -3,6 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { loadState, loadSettings, loadWorkoutSettings } from '../services/storage';
 import { DailyRecord } from '../types';
 import { DEEDS, SINS_LIST, QADA_ITEMS, WORKOUTS, toPersianDigits } from '../constants';
+import { WorkoutSelectorModal } from '../components/WorkoutSelectorModal';
 import { 
   Activity, 
   Archive,
@@ -21,7 +22,8 @@ import {
   BookOpen,
   CalendarCheck,
   Zap,
-  TrendingUp
+  TrendingUp,
+  ChevronDown
 } from 'lucide-react';
 import { 
   Area, 
@@ -59,6 +61,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ isDark }) => {
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
   const [scenario, setScenario] = useState<AnalysisScenario>('general');
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>('');
+  const [isWorkoutModalOpen, setIsWorkoutModalOpen] = useState(false);
 
   // Load Data
   const { records, allDeeds, allWorkouts } = useMemo(() => {
@@ -744,15 +747,25 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ isDark }) => {
                         <h2 className="font-bold text-gray-700 dark:text-gray-200">روند عملکرد ورزشی</h2>
                     </div>
                     
-                    <select 
-                        value={selectedWorkoutId}
-                        onChange={(e) => setSelectedWorkoutId(e.target.value)}
-                        className="bg-white dark:bg-gray-800 border border-cyan-200 dark:border-cyan-800 text-gray-700 dark:text-gray-200 text-xs rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-500"
+                    <button
+                        onClick={() => setIsWorkoutModalOpen(true)}
+                        className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-cyan-200 dark:border-cyan-800 text-gray-700 dark:text-gray-200 text-xs rounded-xl px-3 py-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
-                        {allWorkouts.map(w => (
-                            <option key={w.id} value={w.id}>{w.title} ({w.unit})</option>
-                        ))}
-                    </select>
+                        <span>
+                            {selectedWorkout
+                                ? `${selectedWorkout.title} (${selectedWorkout.unit})`
+                                : 'انتخاب تمرین'}
+                        </span>
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </button>
+
+                    <WorkoutSelectorModal
+                        isOpen={isWorkoutModalOpen}
+                        onClose={() => setIsWorkoutModalOpen(false)}
+                        workouts={allWorkouts}
+                        selectedId={selectedWorkoutId}
+                        onSelect={setSelectedWorkoutId}
+                    />
                 </div>
                 
                 <div className="h-64 w-full">

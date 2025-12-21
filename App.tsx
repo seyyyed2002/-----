@@ -14,6 +14,8 @@ type Tab = 'dashboard' | 'calendar' | 'history' | 'qada' | 'tools' | 'levels';
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [selectedDate, setSelectedDate] = useState<string | undefined>(undefined);
+  // Add state to pass tool selection
+  const [selectedTool, setSelectedTool] = useState<'workout' | 'none'>('none');
   const [isDark, setIsDark] = useState(false);
   const [isSyncing, setIsSyncing] = useState(true);
 
@@ -50,15 +52,16 @@ function App() {
 
   const handleWorkoutSelectionFromCalendar = (date: string) => {
     setSelectedDate(date);
-    // Switch to tools -> workout
-    // This requires ToolsPage to accept props to set active tool, or context.
-    // For simplicity, we just navigate to dashboard for now as requested by user flow,
-    // or we can just open Tools and let user navigate. 
-    // Ideally, we'd refactor navigation state. 
-    // Let's just point to dashboard for safety as per previous logic, or update ToolsPage later.
-    // Actually, in the new structure, Workout is inside Tools. 
-    // Let's keep it simple: Calendar clicks go to Dashboard.
-    setActiveTab('dashboard');
+    setSelectedTool('workout');
+    setActiveTab('tools');
+  };
+
+  // Reset selected tool when tab changes
+  const handleTabChange = (tab: Tab) => {
+      setActiveTab(tab);
+      if (tab !== 'tools') {
+          setSelectedTool('none');
+      }
   };
 
   if (isSyncing) {
@@ -73,7 +76,7 @@ function App() {
   }
 
   return (
-    <Layout activeTab={activeTab} onTabChange={setActiveTab} isDark={isDark} toggleTheme={toggleTheme}>
+    <Layout activeTab={activeTab} onTabChange={handleTabChange} isDark={isDark} toggleTheme={toggleTheme}>
       <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
         <Dashboard 
           key={selectedDate} 
@@ -95,7 +98,10 @@ function App() {
         <QadaPage />
       )}
       {activeTab === 'tools' && (
-        <ToolsPage />
+        <ToolsPage
+            key={selectedTool === 'workout' ? 'tools-workout' : 'tools-default'}
+            initialTool={selectedTool === 'workout' ? 'workout' : undefined}
+        />
       )}
       {activeTab === 'levels' && (
         <LevelsPage />

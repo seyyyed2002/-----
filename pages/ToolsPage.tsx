@@ -9,8 +9,19 @@ import { loadChallenges, saveChallenges } from '../services/storage';
 
 type ToolType = 'none' | 'reports' | 'counter' | 'challenges' | 'workout';
 
-export const ToolsPage: React.FC = () => {
-    const [activeTool, setActiveTool] = useState<ToolType>('none');
+interface ToolsPageProps {
+    initialTool?: ToolType;
+}
+
+export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) => {
+    const [activeTool, setActiveTool] = useState<ToolType>(initialTool);
+
+    // Update active tool if initialTool prop changes (e.g. navigation from outside)
+    useEffect(() => {
+        if (initialTool && initialTool !== 'none') {
+            setActiveTool(initialTool);
+        }
+    }, [initialTool]);
 
     // --- Counter Tool Logic ---
     const [count, setCount] = useState(0);

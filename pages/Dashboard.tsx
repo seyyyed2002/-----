@@ -538,15 +538,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
             onChange={(e) => !isReadOnly && setReport(e.target.value)}
             placeholder={isReadOnly ? "گزارشی ثبت نشده است." : "دل‌نوشته یا گزارش اعمال امروز..."}
             disabled={isReadOnly}
-            className={`w-full h-32 p-3 rounded-xl border outline-none resize-none text-gray-600 dark:text-gray-300 text-sm leading-relaxed transition-colors placeholder-gray-400 dark:placeholder-gray-500 ${
-                showValidationError
-                    ? 'border-red-400 ring-2 ring-red-100 dark:ring-red-900/20'
-                    : 'border-gray-200 dark:border-gray-600'
-            } ${
-                isReadOnly
-                    ? 'bg-gray-50 dark:bg-gray-900 cursor-not-allowed'
-                    : 'bg-white dark:bg-gray-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500'
-            }`}
+            className={`w-full h-32 p-3 rounded-xl border border-gray-200 dark:border-gray-600 outline-none resize-none text-gray-600 dark:text-gray-300 text-sm leading-relaxed transition-colors placeholder-gray-400 dark:placeholder-gray-500 ${isReadOnly ? 'bg-gray-50 dark:bg-gray-900 cursor-not-allowed' : 'bg-white dark:bg-gray-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500'}`}
         />
       </div>
 

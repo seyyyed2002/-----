@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BookHeart, ChevronLeft, Volume2, VolumeX, RotateCcw, Target, Trophy, Flame, Dumbbell, Plus, Trash2, CheckCircle, Calendar, X, AlertTriangle, Sparkles } from 'lucide-react';
 import { ReportsPage } from './ReportsPage'; 
 import { WorkoutPage } from './WorkoutPage';
-import { toPersianDigits, toEnglishDigits, getTodayStr } from '../constants';
+import { toPersianDigits, toEnglishDigits, getTodayStr, toShamsiDate } from '../constants';
 import { Challenge } from '../types';
 import { loadChallenges, saveChallenges } from '../services/storage';
 
@@ -551,7 +551,7 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
                                                     <Calendar className="w-3 h-3" />
                                                     <span>{toPersianDigits(challenge.totalDays)} روزه</span>
                                                     <span>•</span>
-                                                    <span>شروع: {challenge.startDate}</span>
+                                                    <span>شروع: {toShamsiDate(challenge.startDate)}</span>
                                                 </div>
                                             </div>
                                         </div>

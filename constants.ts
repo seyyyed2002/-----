@@ -172,3 +172,17 @@ export const toEnglishDigits = (str: string): string => {
     }
     return result;
 };
+
+export const toShamsiDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    try {
+        const date = new Date(dateStr);
+        return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(date);
+    } catch (e) {
+        return dateStr;
+    }
+};

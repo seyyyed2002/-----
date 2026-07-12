@@ -1,12 +1,12 @@
 
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Calendar, History, Moon, Sun, Archive, Dumbbell, Grid2X2, Map } from 'lucide-react';
+import { LayoutDashboard, Calendar, History, Moon, Sun, Dumbbell, Grid2X2, Map } from 'lucide-react';
 import { loadUserLevel } from '../services/storage';
 import { toPersianDigits } from '../constants';
 
 interface LayoutProps {
   children: React.ReactNode;
-  activeTab: 'dashboard' | 'calendar' | 'history' | 'qada' | 'tools' | 'levels';
+  activeTab: 'dashboard' | 'calendar' | 'history' | 'tools' | 'levels';
   onTabChange: (tab: any) => void;
   isDark: boolean;
   toggleTheme: () => void;
@@ -97,17 +97,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
             <span className="text-[9px] font-medium whitespace-nowrap">تقویم</span>
           </button>
 
-          <button
-            onClick={() => onTabChange('qada')}
-            className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors min-w-[3.5rem] flex-1 ${
-              activeTab === 'qada' 
-                ? 'text-primary-600 dark:text-primary-400' 
-                : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
-            }`}
-          >
-            <Archive className="w-5 h-5" />
-            <span className="text-[9px] font-medium whitespace-nowrap">قضا</span>
-          </button>
 
           <button
             onClick={() => onTabChange('history')}
@@ -130,7 +119,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
             }`}
           >
             <Grid2X2 className="w-5 h-5" />
-            <span className="text-[9px] font-medium whitespace-nowrap">ابزار</span>
+            <span className="text-[9px] font-medium whitespace-nowrap">سایر امکانات</span>
           </button>
           
            <button

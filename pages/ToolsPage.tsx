@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { BookHeart, ChevronLeft, Volume2, VolumeX, RotateCcw, Target, Trophy, Flame, Dumbbell, Plus, Trash2, CheckCircle, Calendar, X, AlertTriangle, Sparkles } from 'lucide-react';
+import { BookHeart, ChevronLeft, Volume2, VolumeX, RotateCcw, Target, Trophy, Flame, Dumbbell, Plus, Trash2, CheckCircle, Calendar, X, AlertTriangle, Sparkles, Archive } from 'lucide-react';
 import { ReportsPage } from './ReportsPage'; 
-import { WorkoutPage } from './WorkoutPage';
+import { QadaPage } from './QadaPage';import { WorkoutPage } from './WorkoutPage';
 import { toPersianDigits, toEnglishDigits, getTodayStr, toShamsiDate } from '../constants';
 import { Challenge } from '../types';
 import { loadChallenges, saveChallenges } from '../services/storage';
 
-type ToolType = 'none' | 'reports' | 'counter' | 'challenges' | 'workout';
+type ToolType = 'none' | 'reports' | 'counter' | 'challenges' | 'workout' | 'qada';
 
 interface ToolsPageProps {
     initialTool?: ToolType;
@@ -210,6 +210,20 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
                     <h2 className="font-bold text-gray-800 dark:text-gray-100">باشگاه ورزشی</h2>
                 </div>
                 <WorkoutPage />
+            </div>
+        );
+    }
+
+    if (activeTool === 'qada') {
+        return (
+            <div className="animate-fade-in">
+                <div className="flex items-center gap-2 mb-4">
+                    <button onClick={() => setActiveTool('none')} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full">
+                        <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                    </button>
+                    <h2 className="font-bold text-gray-800 dark:text-gray-100">نماز و روزه قضا</h2>
+                </div>
+                <QadaPage />
             </div>
         );
     }
@@ -625,7 +639,7 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
     // Default: Tool Grid
     return (
         <div className="space-y-6 animate-fade-in">
-            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 px-2">جعبه ابزار</h2>
+            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 px-2">سایر امکانات</h2>
             
             <div className="grid grid-cols-2 gap-4">
                 <button 
@@ -677,6 +691,19 @@ export const ToolsPage: React.FC<ToolsPageProps> = ({ initialTool = 'none' }) =>
                     <div>
                         <h3 className="font-bold text-gray-700 dark:text-gray-200">چالش‌ها</h3>
                         <span className="text-[10px] text-gray-400">مسابقات معنوی</span>
+                    </div>
+                </button>
+
+                <button 
+                    onClick={() => setActiveTool('qada')}
+                    className="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-3 text-center group"
+                >
+                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 text-purple-500 rounded-2xl group-hover:scale-110 transition-transform">
+                        <Archive className="w-8 h-8" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-gray-700 dark:text-gray-200">قضا</h3>
+                        <span className="text-[10px] text-gray-400">مدیریت نماز و روزه قضا</span>
                     </div>
                 </button>
             </div>

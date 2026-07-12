@@ -4,12 +4,12 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { CalendarPage } from './pages/CalendarPage';
 import { HistoryPage } from './pages/HistoryPage';
-import { QadaPage } from './pages/QadaPage';
+
 import { ToolsPage } from './pages/ToolsPage';
 import { LevelsPage } from './pages/LevelsPage';
 import { syncAllFromSupabase } from './services/storage';
 
-type Tab = 'dashboard' | 'calendar' | 'history' | 'qada' | 'tools' | 'levels';
+type Tab = 'dashboard' | 'calendar' | 'history' | 'tools' | 'levels';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -93,9 +93,6 @@ function App() {
       )}
       {activeTab === 'history' && (
         <HistoryPage isDark={isDark} />
-      )}
-      {activeTab === 'qada' && (
-        <QadaPage />
       )}
       {activeTab === 'tools' && (
         <ToolsPage

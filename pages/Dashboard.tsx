@@ -2,16 +2,95 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getTodayStr, toPersianDigits } from '../constants';
 import { AppSettings, DailyRecord, DeedDefinition, DeedType } from '../types';
-import { DEED_SNAPSHOT_KEY, getConfiguredDeeds, getRecordDeeds, serializeDeedSnapshot, saveRecord, getRecord, loadSettings, saveCustomDeed, saveDeedConfiguration, loadQada, saveQada } from '../services/storage';
+import { DEED_SNAPSHOT_KEY, getConfiguredDeeds, getRecordDeeds, serializeDeedSnapshot, saveRecord, getRecord, loadSettings, saveCustomDeed, saveDeedConfiguration, loadQada, saveQada, saveSettings, removeCustomDeed } from '../services/storage';
 import { DeedInput } from '../components/DeedInput';
 import { DeedManagerModal } from '../components/DeedManagerModal';
 import { SinInput } from '../components/SinInput';
-import { Save, ChevronLeft, ChevronRight, Lock, Star, Plus, X, AlertCircle, Settings2 } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Lock, Star, Plus, X, AlertCircle, Settings2, Sliders, Edit2, Eye, EyeOff, Trash2 } from 'lucide-react';
 
 interface DashboardProps {
   initialDate?: string;
   onDateChange?: (date: string) => void;
 }
+
+const InlineDeedEditor: React.FC<{
+  deed: DeedDefinition;
+  weight: number;
+  scoringSystem: 'weighted_average' | 'points_sum';
+  onWeightChange: (weight: number) => void;
+  onToggleActive: () => void;
+  onTitleChange: (title: string) => void;
+  onDelete?: () => void;
+}> = ({ deed, weight, scoringSystem, onWeightChange, onToggleActive, onTitleChange, onDelete }) => {
+  const [localTitle, setLocalTitle] = useState(deed.title);
+
+  useEffect(() => {
+    setLocalTitle(deed.title);
+  }, [deed.title]);
+
+  return (
+    <div className={`p-4 rounded-2xl border transition-all bg-white dark:bg-gray-800 shadow-sm flex flex-col gap-3 ${
+      deed.isActive === false ? 'border-dashed opacity-60 border-gray-200 dark:border-gray-700' : 'border-gray-100 dark:border-gray-750'
+    }`}>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onToggleActive}
+          className={`p-2 rounded-xl transition ${
+            deed.isActive !== false 
+              ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400' 
+              : 'bg-gray-100 text-gray-400 dark:bg-gray-700'
+          }`}
+          title={deed.isActive !== false ? 'غیرفعال کردن' : 'فعال کردن'}
+        >
+          {deed.isActive !== false ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+        </button>
+
+        <input
+          type="text"
+          value={localTitle}
+          onChange={(e) => {
+            setLocalTitle(e.target.value);
+            onTitleChange(e.target.value);
+          }}
+          className="flex-1 min-w-0 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 outline-none"
+        />
+
+        {deed.isCustom && onDelete && (
+          <button
+            onClick={onDelete}
+            className="text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-xl p-2 transition"
+            title="حذف عمل"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between text-xs px-1">
+        <span className="text-gray-400 dark:text-gray-500 font-medium">
+          {scoringSystem === 'points_sum' ? 'امتیاز اختصاصی:' : 'وزن عمل (ضریب تاثیر):'}
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onWeightChange(Math.max(scoringSystem === 'points_sum' ? 0 : 1, weight - (scoringSystem === 'points_sum' ? 5 : 1)))}
+            className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center font-bold text-gray-700 dark:text-gray-200"
+          >
+            -
+          </button>
+          <span className="font-bold text-gray-800 dark:text-gray-200 w-8 text-center text-sm">
+            {toPersianDigits(weight)}
+          </span>
+          <button
+            onClick={() => onWeightChange(weight + (scoringSystem === 'points_sum' ? 5 : 1))}
+            className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center font-bold text-gray-700 dark:text-gray-200"
+          >
+            +
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange }) => {
   const [date, setDate] = useState(initialDate || getTodayStr());
@@ -34,6 +113,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
   const [newDeedTitle, setNewDeedTitle] = useState('');
   const closeManager = useCallback(() => setIsManagerOpen(false), []);
 
+  // Customizable scoring states
+  const [isConfigControlOpen, setIsConfigControlOpen] = useState(false);
+  const [isInlineEditMode, setIsInlineEditMode] = useState(false);
+  const [scoringSystem, setScoringSystem] = useState<'weighted_average' | 'points_sum'>('weighted_average');
+  const [targetPoints, setTargetPoints] = useState(100);
+  const [sinPenalty, setSinPenalty] = useState(10);
+  const [deedWeights, setDeedWeights] = useState<Record<string, number>>({});
+
   // Generate random star positions once on mount (stable across renders)
   const randomStars = useMemo(() => {
       return Array.from({ length: 40 }).map(() => ({
@@ -54,13 +141,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
   // Calculate readonly state
   const today = getTodayStr();
   const isReadOnly = date !== today;
-  const displayedDeeds = isReadOnly ? (recordDeeds ?? []) : allDeeds;
+  const displayedDeeds = isReadOnly 
+    ? (recordDeeds ?? []) 
+    : (isInlineEditMode ? configuredDeeds : allDeeds);
 
   // Load data and settings
   useEffect(() => {
     const loadedSettings = loadSettings();
     const knownDeeds = getConfiguredDeeds(loadedSettings, true);
     setSettings(loadedSettings);
+
+    // Load customizable scoring configs
+    setScoringSystem(loadedSettings.scoringSystem || 'weighted_average');
+    setTargetPoints(loadedSettings.targetPoints || 100);
+    setSinPenalty(loadedSettings.sinPenalty !== undefined ? loadedSettings.sinPenalty : 10);
+    
+    // Set custom/default weights
+    const initialWeights: Record<string, number> = {};
+    knownDeeds.forEach(deed => {
+      if (loadedSettings.deedWeights && loadedSettings.deedWeights[deed.id] !== undefined) {
+        initialWeights[deed.id] = loadedSettings.deedWeights[deed.id];
+      } else {
+        // fallbacks
+        if (deed.type === 'prayer') {
+          initialWeights[deed.id] = 2;
+        } else if (deed.id === 'gaze_control' || deed.id === 'truthfulness') {
+          initialWeights[deed.id] = 3;
+        } else if (deed.type === 'golden') {
+          const isDouble = deed.id === 'golden_night_prayer' || deed.id === 'golden_father_hand' || deed.id === 'golden_mother_hand';
+          initialWeights[deed.id] = isDouble ? 20 : 10;
+        } else {
+          initialWeights[deed.id] = 1;
+        }
+      }
+    });
+    setDeedWeights(initialWeights);
 
     const record = getRecord(date);
     if (record) {
@@ -81,7 +196,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
     }
     
     if (onDateChange) onDateChange(date);
-  }, [date, onDateChange]);
+  }, [date, onDateChange, isInlineEditMode]);
 
   const handleScoreChange = (id: string, val: number) => {
     if (isReadOnly) return;
@@ -126,49 +241,191 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
     setSettings(updatedSettings);
     setIsManagerOpen(false);
   };
-  // ----------------------
+
+  const handleSaveSettings = (updates: Partial<AppSettings>) => {
+    const updatedSettings = {
+      ...settings,
+      ...updates
+    };
+    saveSettings(updatedSettings);
+    setSettings(updatedSettings);
+  };
+
+  const handleWeightChange = (deedId: string, weight: number) => {
+    const updatedWeights = { ...deedWeights, [deedId]: weight };
+    setDeedWeights(updatedWeights);
+    handleSaveSettings({ deedWeights: updatedWeights });
+  };
+
+  const handleDeedToggleActive = (deedId: string, isActive: boolean) => {
+    const updatedPreferences = {
+      ...(settings.deedPreferences || {}),
+      [deedId]: {
+        ...(settings.deedPreferences?.[deedId] || {}),
+        isActive
+      }
+    };
+    const updatedSettings = { ...settings, deedPreferences: updatedPreferences };
+    saveSettings(updatedSettings);
+    setSettings(updatedSettings);
+  };
+
+  const handleDeedTitleEdit = (deedId: string, title: string) => {
+    const updatedPreferences = {
+      ...(settings.deedPreferences || {}),
+      [deedId]: {
+        ...(settings.deedPreferences?.[deedId] || {}),
+        title
+      }
+    };
+    const updatedSettings = { ...settings, deedPreferences: updatedPreferences };
+    saveSettings(updatedSettings);
+    setSettings(updatedSettings);
+  };
+
+  const handleRemoveCustomDeed = (deedId: string) => {
+    removeCustomDeed(deedId);
+    setSettings(loadSettings());
+  };
+
+  const applyPreset = (presetType: 'minimalist' | 'ethical' | 'comprehensive' | 'default') => {
+    let updatedSettings: Partial<AppSettings> = {};
+    const loadedSettings = loadSettings();
+    const allKnownDeeds = getConfiguredDeeds(loadedSettings, true);
+    
+    const deedPreferences: Record<string, any> = {};
+    const localWeights: Record<string, number> = {};
+    
+    if (presetType === 'minimalist') {
+      allKnownDeeds.forEach(deed => {
+        if (deed.type === 'prayer') {
+          deedPreferences[deed.id] = { isActive: true };
+          if (deed.id === 'prayer_fajr') localWeights[deed.id] = 30;
+          if (deed.id === 'prayer_dhuhr') localWeights[deed.id] = 35;
+          if (deed.id === 'prayer_maghrib') localWeights[deed.id] = 35;
+        } else {
+          deedPreferences[deed.id] = { isActive: false };
+        }
+      });
+      updatedSettings = {
+        scoringSystem: 'points_sum',
+        targetPoints: 100,
+        sinPenalty: 10,
+        deedWeights: localWeights,
+        deedPreferences
+      };
+    } else if (presetType === 'ethical') {
+      allKnownDeeds.forEach(deed => {
+        const isCore = deed.type === 'prayer' || deed.id === 'gaze_control' || deed.id === 'truthfulness' || deed.id === 'sleep_time';
+        deedPreferences[deed.id] = { isActive: isCore };
+        
+        if (deed.id === 'gaze_control') localWeights[deed.id] = 25;
+        else if (deed.id === 'truthfulness') localWeights[deed.id] = 25;
+        else if (deed.id === 'sleep_time') localWeights[deed.id] = 10;
+        else if (deed.type === 'prayer') localWeights[deed.id] = 15;
+        else localWeights[deed.id] = 5;
+      });
+      updatedSettings = {
+        scoringSystem: 'points_sum',
+        targetPoints: 100,
+        sinPenalty: 10,
+        deedWeights: localWeights,
+        deedPreferences
+      };
+    } else if (presetType === 'comprehensive') {
+      allKnownDeeds.forEach(deed => {
+        deedPreferences[deed.id] = { isActive: true };
+        if (deed.type === 'prayer') localWeights[deed.id] = 15;
+        else if (deed.id === 'gaze_control' || deed.id === 'truthfulness') localWeights[deed.id] = 10;
+        else if (deed.type === 'golden') {
+          const isDouble = deed.id === 'golden_night_prayer' || deed.id === 'golden_father_hand' || deed.id === 'golden_mother_hand';
+          localWeights[deed.id] = isDouble ? 20 : 10;
+        } else {
+          localWeights[deed.id] = 5;
+        }
+      });
+      updatedSettings = {
+        scoringSystem: 'points_sum',
+        targetPoints: 100,
+        sinPenalty: 10,
+        deedWeights: localWeights,
+        deedPreferences
+      };
+    } else {
+      // Default: Reset to weighted average defaults
+      allKnownDeeds.forEach(deed => {
+        deedPreferences[deed.id] = { isActive: true };
+        if (deed.type === 'prayer') localWeights[deed.id] = 2;
+        else if (deed.id === 'gaze_control' || deed.id === 'truthfulness') localWeights[deed.id] = 3;
+        else if (deed.type === 'golden') {
+          const isDouble = deed.id === 'golden_night_prayer' || deed.id === 'golden_father_hand' || deed.id === 'golden_mother_hand';
+          localWeights[deed.id] = isDouble ? 20 : 10;
+        } else {
+          localWeights[deed.id] = 1;
+        }
+      });
+      updatedSettings = {
+        scoringSystem: 'weighted_average',
+        targetPoints: 100,
+        sinPenalty: 10,
+        deedWeights: localWeights,
+        deedPreferences
+      };
+    }
+    
+    const finalSettings = {
+      ...settings,
+      ...updatedSettings
+    };
+    saveSettings(finalSettings);
+    setSettings(finalSettings);
+    
+    // update local state
+    setScoringSystem(finalSettings.scoringSystem || 'weighted_average');
+    setDeedWeights(finalSettings.deedWeights || {});
+  };
 
   const calculatedTotalAverage = useMemo(() => {
     let totalWeightedScore = 0;
     let totalWeight = 0;
+    let totalEarnedPoints = 0;
     let goldenBonus = 0;
 
     allDeeds.forEach((deed) => {
       const score = scores[deed.id] || 0;
+      
+      const deedVal = deedWeights[deed.id] !== undefined 
+        ? deedWeights[deed.id] 
+        : (deed.type === 'prayer' ? 2 : (deed.id === 'gaze_control' || deed.id === 'truthfulness' ? 3 : 1));
 
       if (deed.type === 'golden') {
-          // Golden logic: Add to bonus, do not affect base average denominator
           if (score === 100) {
-              if (deed.id === 'golden_night_prayer' || deed.id === 'golden_father_hand' || deed.id === 'golden_mother_hand') {
-                  goldenBonus += 20;
-              } else {
-                  goldenBonus += 10;
-              }
+              const goldenVal = deedWeights[deed.id] !== undefined
+                ? deedWeights[deed.id]
+                : (deed.id === 'golden_night_prayer' || deed.id === 'golden_father_hand' || deed.id === 'golden_mother_hand' ? 20 : 10);
+              goldenBonus += goldenVal;
           }
       } else {
-          // Normal deeds contribute to weighted average
-          let weight = 1;
-          
-          if (deed.type === 'prayer') {
-             weight = 2;
-          } else if (deed.id === 'gaze_control' || deed.id === 'truthfulness') {
-            weight = 3;
+          if (scoringSystem === 'points_sum') {
+              totalEarnedPoints += (score / 100) * deedVal;
+          } else {
+              totalWeightedScore += score * deedVal;
+              totalWeight += deedVal;
           }
-          
-          totalWeightedScore += score * weight;
-          totalWeight += weight;
       }
     });
 
-    const baseAverage = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
-    
-    // Apply Sin Penalty (-10 per sin count)
-    const penalty = sins.length * 10;
-    
-    const finalScore = baseAverage + goldenBonus - penalty;
-    
-    return Math.round(finalScore);
-  }, [scores, sins, allDeeds]);
+    let finalScore = 0;
+    if (scoringSystem === 'points_sum') {
+        finalScore = totalEarnedPoints + goldenBonus - (sins.length * sinPenalty);
+    } else {
+        const baseAverage = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
+        finalScore = baseAverage + goldenBonus - (sins.length * sinPenalty);
+    }
+
+    // Clamp score to 100 max and -100 min
+    return Math.min(100, Math.max(-100, Math.round(finalScore)));
+  }, [scores, sins, allDeeds, scoringSystem, sinPenalty, deedWeights]);
 
   const total_average = isReadOnly && savedTotalAverage !== null
     ? savedTotalAverage
@@ -178,20 +435,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
     let count = 0;
     displayedDeeds.forEach(d => {
         if (d.type === 'golden' && scores[d.id] === 100) {
-            // Add 2 stars for night prayer, 1 for others
-            if (d.id === 'golden_night_prayer' || d.id === 'golden_father_hand' || d.id === 'golden_mother_hand') {
+            const bonusVal = deedWeights[d.id] !== undefined ? deedWeights[d.id] : (d.id === 'golden_night_prayer' || d.id === 'golden_father_hand' || d.id === 'golden_mother_hand' ? 20 : 10);
+            if (bonusVal >= 20) {
                 count += 2;
-            } else {
+            } else if (bonusVal > 0) {
                 count += 1;
             }
         }
     });
     return count;
-  }, [scores, displayedDeeds]);
+  }, [scores, displayedDeeds, deedWeights]);
 
   const getScoreColorClass = (score: number) => {
-    if (score > 100) {
-        // Golden Gradient for > 100 with intense shine
+    if (score >= 100) {
+        // Golden Gradient for >= 100 with intense shine
         return 'bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-600 border-yellow-300 shadow-yellow-500/50';
     }
 
@@ -210,7 +467,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
         case 7: return 'bg-gradient-to-br from-green-600 to-emerald-800'; // 70-79
         case 8: return 'bg-gradient-to-br from-emerald-600 to-teal-800'; // 80-89
         case 9: return 'bg-gradient-to-br from-teal-500 to-cyan-700'; // 90-99
-        case 10: return 'bg-gradient-to-br from-cyan-500 to-blue-600'; // 100
         default: return 'bg-gradient-to-br from-cyan-500 to-blue-600'; // Fallback
     }
   };
@@ -376,29 +632,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
       {/* Date Selector & Score Card */}
       <div className={`${getScoreColorClass(total_average)} rounded-3xl p-6 text-white shadow-lg relative overflow-hidden transition-all duration-700`}>
          
-         {/* Starry Animation for Golden Score (> 100) */}
-         {total_average > 100 && (
-             <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-                 {/* Rotating Background Glow */}
-                 <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-gradient-to-b from-white/20 to-transparent rotate-45 animate-pulse" style={{ animationDuration: '3s' }}></div>
-                 
-                 {/* Sparkling Stars */}
-                 {randomStars.map((star, i) => (
-                     <div 
-                        key={i}
-                        className="absolute bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]"
-                        style={{
-                            top: star.top,
-                            left: star.left,
-                            width: `${star.size}px`,
-                            height: `${star.size}px`,
-                            animationDuration: star.duration,
-                            animationDelay: star.delay,
-                            opacity: Math.random() * 0.5 + 0.3
-                        }}
-                     />
-                 ))}
-             </div>
+         {/* Starry Animation for Golden Score (>= 100) */}
+         {total_average >= 100 && (
+              <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+                  {/* Rotating Background Glow */}
+                  <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-gradient-to-b from-white/20 to-transparent rotate-45 animate-pulse" style={{ animationDuration: '3s' }}></div>
+                  
+                  {/* Sparkling Stars */}
+                  {randomStars.map((star, i) => (
+                      <div 
+                         key={i}
+                         className="absolute bg-white rounded-full animate-pulse shadow-[0_0_4px_rgba(255,255,255,0.8)]"
+                         style={{
+                             top: star.top,
+                             left: star.left,
+                             width: `${star.size}px`,
+                             height: `${star.size}px`,
+                             animationDuration: star.duration,
+                             animationDelay: star.delay,
+                             opacity: Math.random() * 0.5 + 0.3
+                         }}
+                      />
+                  ))}
+              </div>
          )}
 
          <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none z-0">
@@ -428,7 +684,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
 
             <div className="flex flex-col items-center mb-2">
                 <div className="flex items-end gap-3" dir="ltr">
-                    <span className={`text-6xl font-black tracking-tighter leading-none ${total_average > 100 ? 'drop-shadow-lg' : ''}`}>
+                    <span className={`text-6xl font-black tracking-tighter leading-none ${total_average >= 100 ? 'drop-shadow-lg' : ''}`}>
                         {toPersianDigits(total_average)}
                     </span>
                     <span className="text-xl mb-1.5 opacity-80 font-bold">/ ۱۰۰+</span>
@@ -462,8 +718,177 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
         </div>
       </div>
 
+      {/* Stats Summary Bar */}
+      {!isReadOnly && (
+          <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center justify-center transition-all duration-300 hover:shadow-md">
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold block">🕌 نمازها</span>
+                  <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+                      {toPersianDigits(allDeeds.filter(d => d.type === 'prayer' && scores[d.id] === 100).length)} از {toPersianDigits(allDeeds.filter(d => d.type === 'prayer').length)}
+                  </span>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center justify-center transition-all duration-300 hover:shadow-md">
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold block">📖 ادعیه/قرآن</span>
+                  <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 mt-1 block">
+                      {toPersianDigits(allDeeds.filter(d => d.type === 'binary' && scores[d.id] === 100).length)} از {toPersianDigits(allDeeds.filter(d => d.type === 'binary').length)}
+                  </span>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center justify-center transition-all duration-300 hover:shadow-md">
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold block">✨ طلایی</span>
+                  <span className="text-sm font-black text-yellow-600 dark:text-yellow-500 mt-1 block">
+                      {toPersianDigits(allDeeds.filter(d => d.type === 'golden' && scores[d.id] === 100).length)} مورد
+                  </span>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center justify-center transition-all duration-300 hover:shadow-md">
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold block">⚠️ خطاها</span>
+                  <span className="text-sm font-black text-red-500 mt-1 block">
+                      {toPersianDigits(sins.length)} خطا
+                  </span>
+              </div>
+          </div>
+      )}
+
+      {/* Quick Dashboard Action / Settings Panel */}
+      {!isReadOnly && (
+          <div className="flex gap-3">
+              <button
+                  onClick={() => setIsConfigControlOpen(!isConfigControlOpen)}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm text-xs font-bold text-gray-700 dark:text-gray-200 transition-all hover:scale-[1.02] active:scale-95 hover:shadow-md"
+              >
+                  <Sliders className="w-4 h-4 text-primary-500" />
+                  <span>تنظیم روش امتیازدهی و قالب‌ها</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${isConfigControlOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              <button
+                  onClick={() => setIsInlineEditMode(!isInlineEditMode)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border transition-all hover:scale-[1.02] active:scale-95 text-xs font-bold shadow-sm ${
+                      isInlineEditMode 
+                          ? 'bg-primary-600 text-white border-primary-600 hover:bg-primary-700' 
+                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-100 dark:border-gray-700 hover:shadow-md'
+                  }`}
+              >
+                  <Edit2 className="w-4 h-4 text-primary-500" />
+                  <span>{isInlineEditMode ? 'خروج از حالت ویرایش' : 'ویرایش عنوان و امتیازها'}</span>
+              </button>
+          </div>
+      )}
+
+      {/* Expandable Config Control Center */}
+      {isConfigControlOpen && !isReadOnly && (
+          <div className="animate-fade-in bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-gray-100 dark:border-gray-700 rounded-3xl p-5 shadow-lg space-y-5">
+              <h3 className="font-bold text-sm text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-primary-500" />
+                  <span>مرکز مدیریت و شخصی‌سازی برنامه روزانه</span>
+              </h3>
+              
+              {/* Scoring System Mode Selector */}
+              <div className="grid grid-cols-2 gap-3">
+                  <button
+                      onClick={() => {
+                          setScoringSystem('weighted_average');
+                          handleSaveSettings({ scoringSystem: 'weighted_average' });
+                      }}
+                      className={`p-3 rounded-2xl border text-right transition-all flex flex-col gap-1 ${
+                          scoringSystem === 'weighted_average'
+                              ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/20 ring-1 ring-primary-500'
+                              : 'border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 hover:bg-gray-100/50'
+                      }`}
+                  >
+                      <span className="font-bold text-xs text-gray-800 dark:text-gray-200">⚖️ میانگین وزنی (Weighted)</span>
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500 leading-normal">
+                          کیفیت کل اعمال با تاثیرگذاری وزن هر عمل (مناسب برای خودسازی تعادلی)
+                      </span>
+                  </button>
+                  
+                  <button
+                      onClick={() => {
+                          setScoringSystem('points_sum');
+                          handleSaveSettings({ scoringSystem: 'points_sum' });
+                      }}
+                      className={`p-3 rounded-2xl border text-right transition-all flex flex-col gap-1 ${
+                          scoringSystem === 'points_sum'
+                              ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/20 ring-1 ring-primary-500'
+                              : 'border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 hover:bg-gray-100/50'
+                      }`}
+                  >
+                      <span className="font-bold text-xs text-gray-800 dark:text-gray-200">⚡ مجموع امتیاز تجمعی (Points Sum)</span>
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500 leading-normal">
+                          هر کار امتیاز خاص خود را دارد و جمع آن امتیاز نهایی است (سقف ۱۰۰)
+                      </span>
+                  </button>
+              </div>
+
+              {/* Sliders for penalties and config */}
+              <div className="grid gap-4 sm:grid-cols-2 bg-gray-50/50 dark:bg-gray-900/30 p-4 rounded-2xl border border-gray-100 dark:border-gray-850">
+                  <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-bold text-gray-600 dark:text-gray-400">
+                          <span>هدف نهایی روزانه:</span>
+                          <span className="text-primary-600 dark:text-primary-400">{toPersianDigits(100)} امتیاز</span>
+                      </div>
+                      <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg w-full relative overflow-hidden">
+                          <div className="h-full bg-primary-500 w-full"></div>
+                      </div>
+                      <span className="text-[10px] text-gray-400 block">حداکثر امتیاز برنامه روی ۱۰۰ قفل شده است.</span>
+                  </div>
+
+                  {/* Sin Penalty Slider */}
+                  <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-bold text-gray-600 dark:text-gray-400">
+                          <span>جریمه هر گناه/خطا:</span>
+                          <span className="text-red-500">{toPersianDigits(sinPenalty)}- امتیاز</span>
+                      </div>
+                      <input
+                          type="range"
+                          min="0"
+                          max="30"
+                          step="5"
+                          value={sinPenalty}
+                          onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setSinPenalty(val);
+                              handleSaveSettings({ sinPenalty: val });
+                          }}
+                          className="w-full accent-red-500 cursor-pointer h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none"
+                      />
+                  </div>
+              </div>
+
+              {/* Presets Grid */}
+              <div className="space-y-2">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 block px-1">🚀 قالب‌های آماده برنامه روزانه:</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <button
+                          onClick={() => applyPreset('minimalist')}
+                          className="py-2.5 px-2 rounded-xl bg-green-50 hover:bg-green-100 dark:bg-green-950/20 dark:hover:bg-green-950/30 text-green-700 dark:text-green-300 text-xs font-bold transition-all border border-green-100 dark:border-green-900/50"
+                      >
+                          🕌 فقط نمازها (حداقلی)
+                      </button>
+                      <button
+                          onClick={() => applyPreset('ethical')}
+                          className="py-2.5 px-2 rounded-xl bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-950/20 dark:hover:bg-cyan-950/30 text-cyan-700 dark:text-cyan-300 text-xs font-bold transition-all border border-cyan-100 dark:border-cyan-900/50"
+                      >
+                          🌱 خودسازی اخلاقی
+                      </button>
+                      <button
+                          onClick={() => applyPreset('comprehensive')}
+                          className="py-2.5 px-2 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/20 dark:hover:bg-purple-950/30 text-purple-700 dark:text-purple-300 text-xs font-bold transition-all border border-purple-100 dark:border-purple-900/50"
+                      >
+                          🌟 برنامه جامع
+                      </button>
+                      <button
+                          onClick={() => applyPreset('default')}
+                          className="py-2.5 px-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all border border-gray-200 dark:border-gray-700"
+                      >
+                          🔄 پیش‌فرض اولیه
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
       {/* Deeds List */}
-      <div className="space-y-3">
+      <div className="space-y-6">
         <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div>
             <h2 className="text-sm font-bold text-gray-700 dark:text-gray-200">معیارهای امتیاز روزانه</h2>
@@ -481,80 +906,187 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
             className="flex items-center gap-2 rounded-xl bg-primary-50 px-3 py-2 text-xs font-bold text-primary-600 transition hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-400"
           >
             <Settings2 className="h-4 w-4" />
-            شخصی‌سازی
+            شخصی‌سازی کلی
           </button>
         </div>
 
-        {/* Binary Section */}
-        <div className="flex items-center justify-between px-2">
-            <h3 className="text-gray-500 dark:text-gray-400 font-bold text-sm">اعمال قراردادی</h3>
-            <button 
-                onClick={() => openAddModal('binary')}
-                className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-primary-100 hover:text-primary-600 transition"
-            >
-                <Plus className="w-4 h-4" />
-            </button>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-            {displayedDeeds.filter(d => d.type === 'binary').map(deed => (
-            <DeedInput
-                key={deed.id}
-                deed={deed}
-                value={scores[deed.id] || 0}
-                onChange={(val) => handleScoreChange(deed.id, val)}
-                disabled={isReadOnly}
-            />
-            ))}
-        </div>
+        {/* Category: 🕌 نماز و عبادات */}
+        {displayedDeeds.filter(d => d.type === 'prayer').length > 0 && (
+            <div className="space-y-3">
+                <div className="flex items-center justify-between px-2">
+                    <h3 className="text-emerald-600 dark:text-emerald-400 font-bold text-sm flex items-center gap-2">
+                        <span>🕌</span>
+                        <span>نماز و عبادات</span>
+                    </h3>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-1">
+                    {displayedDeeds.filter(d => d.type === 'prayer').map(deed => (
+                        isInlineEditMode ? (
+                            <InlineDeedEditor
+                                key={deed.id}
+                                deed={deed}
+                                weight={deedWeights[deed.id] !== undefined ? deedWeights[deed.id] : 2}
+                                scoringSystem={scoringSystem}
+                                onWeightChange={(w) => handleWeightChange(deed.id, w)}
+                                onToggleActive={() => handleDeedToggleActive(deed.id, deed.isActive !== false ? false : true)}
+                                onTitleChange={(t) => handleDeedTitleEdit(deed.id, t)}
+                                onDelete={() => handleRemoveCustomDeed(deed.id)}
+                            />
+                        ) : (
+                            <DeedInput
+                                key={deed.id}
+                                deed={deed}
+                                value={scores[deed.id] || 0}
+                                onChange={(val) => handleScoreChange(deed.id, val)}
+                                disabled={isReadOnly}
+                                scoringSystem={scoringSystem}
+                                deedWeight={deedWeights[deed.id] !== undefined ? deedWeights[deed.id] : 2}
+                            />
+                        )
+                    ))}
+                </div>
+            </div>
+        )}
 
-        {/* Scalar Section */}
-        <div className="flex items-center justify-between px-2 mt-6">
-            <h3 className="text-gray-500 dark:text-gray-400 font-bold text-sm">مراقبه‌های اخلاقی (کیفی)</h3>
-            <button 
-                onClick={() => openAddModal('scalar')}
-                className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-primary-100 hover:text-primary-600 transition"
-            >
-                <Plus className="w-4 h-4" />
-            </button>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-1">
-            {displayedDeeds.filter(d => d.type === 'scalar' || d.type === 'prayer').map(deed => (
-            <DeedInput
-                key={deed.id}
-                deed={deed}
-                value={scores[deed.id] || 0}
-                onChange={(val) => handleScoreChange(deed.id, val)}
-                disabled={isReadOnly}
-            />
-            ))}
-        </div>
+        {/* Category: 📖 ادعیه و زیارات */}
+        {displayedDeeds.filter(d => d.type === 'binary').length > 0 && (
+            <div className="space-y-3">
+                <div className="flex items-center justify-between px-2">
+                    <h3 className="text-indigo-600 dark:text-indigo-400 font-bold text-sm flex items-center gap-2">
+                        <span>📖</span>
+                        <span>ادعیه و زیارات</span>
+                    </h3>
+                    {!isReadOnly && (
+                        <button 
+                            onClick={() => openAddModal('binary')}
+                            className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-primary-100 hover:text-primary-600 transition"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                    {displayedDeeds.filter(d => d.type === 'binary').map(deed => (
+                        isInlineEditMode ? (
+                            <InlineDeedEditor
+                                key={deed.id}
+                                deed={deed}
+                                weight={deedWeights[deed.id] !== undefined ? deedWeights[deed.id] : 1}
+                                scoringSystem={scoringSystem}
+                                onWeightChange={(w) => handleWeightChange(deed.id, w)}
+                                onToggleActive={() => handleDeedToggleActive(deed.id, deed.isActive !== false ? false : true)}
+                                onTitleChange={(t) => handleDeedTitleEdit(deed.id, t)}
+                                onDelete={() => handleRemoveCustomDeed(deed.id)}
+                            />
+                        ) : (
+                            <DeedInput
+                                key={deed.id}
+                                deed={deed}
+                                value={scores[deed.id] || 0}
+                                onChange={(val) => handleScoreChange(deed.id, val)}
+                                disabled={isReadOnly}
+                                scoringSystem={scoringSystem}
+                                deedWeight={deedWeights[deed.id] !== undefined ? deedWeights[deed.id] : 1}
+                            />
+                        )
+                    ))}
+                </div>
+            </div>
+        )}
 
-        {/* Golden Section */}
-        <div className="flex items-center justify-between px-2 mt-6">
-            <h3 className="text-yellow-600 dark:text-yellow-500 font-bold text-sm flex items-center gap-2">
-                <Star className="w-4 h-4 fill-current" />
-                اعمال طلایی (پاداش ویژه)
-            </h3>
-            <button 
-                onClick={() => openAddModal('golden')}
-                className="w-6 h-6 rounded-full bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center hover:bg-yellow-100 hover:text-yellow-600 transition"
-            >
-                <Plus className="w-4 h-4" />
-            </button>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-1">
-            {displayedDeeds.filter(d => d.type === 'golden').map(deed => (
-            <DeedInput
-                key={deed.id}
-                deed={deed}
-                value={scores[deed.id] || 0}
-                onChange={(val) => handleScoreChange(deed.id, val)}
-                customTitle={custom_titles[deed.id]}
-                onCustomTitleChange={(title) => handleTitleChange(deed.id, title)}
-                disabled={isReadOnly}
-            />
-            ))}
-        </div>
+        {/* Category: 🌱 مراقبه‌های اخلاقی */}
+        {displayedDeeds.filter(d => d.type === 'scalar').length > 0 && (
+            <div className="space-y-3">
+                <div className="flex items-center justify-between px-2">
+                    <h3 className="text-cyan-600 dark:text-cyan-400 font-bold text-sm flex items-center gap-2">
+                        <span>🌱</span>
+                        <span>مراقبه‌های اخلاقی و سلوکی</span>
+                    </h3>
+                    {!isReadOnly && (
+                        <button 
+                            onClick={() => openAddModal('scalar')}
+                            className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-primary-100 hover:text-primary-600 transition"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-1">
+                    {displayedDeeds.filter(d => d.type === 'scalar').map(deed => (
+                        isInlineEditMode ? (
+                            <InlineDeedEditor
+                                key={deed.id}
+                                deed={deed}
+                                weight={deedWeights[deed.id] !== undefined ? deedWeights[deed.id] : (deed.id === 'gaze_control' || deed.id === 'truthfulness' ? 3 : 1)}
+                                scoringSystem={scoringSystem}
+                                onWeightChange={(w) => handleWeightChange(deed.id, w)}
+                                onToggleActive={() => handleDeedToggleActive(deed.id, deed.isActive !== false ? false : true)}
+                                onTitleChange={(t) => handleDeedTitleEdit(deed.id, t)}
+                                onDelete={() => handleRemoveCustomDeed(deed.id)}
+                            />
+                        ) : (
+                            <DeedInput
+                                key={deed.id}
+                                deed={deed}
+                                value={scores[deed.id] || 0}
+                                onChange={(val) => handleScoreChange(deed.id, val)}
+                                disabled={isReadOnly}
+                                scoringSystem={scoringSystem}
+                                deedWeight={deedWeights[deed.id] !== undefined ? deedWeights[deed.id] : (deed.id === 'gaze_control' || deed.id === 'truthfulness' ? 3 : 1)}
+                            />
+                        )
+                    ))}
+                </div>
+            </div>
+        )}
+
+        {/* Category: ✨ اعمال طلایی */}
+        {displayedDeeds.filter(d => d.type === 'golden').length > 0 && (
+            <div className="space-y-3">
+                <div className="flex items-center justify-between px-2">
+                    <h3 className="text-yellow-600 dark:text-yellow-500 font-bold text-sm flex items-center gap-2">
+                        <Star className="w-4 h-4 fill-current animate-pulse text-yellow-500" />
+                        <span>اعمال طلایی (پاداش ویژه)</span>
+                    </h3>
+                    {!isReadOnly && (
+                        <button 
+                            onClick={() => openAddModal('golden')}
+                            className="w-6 h-6 rounded-full bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center hover:bg-yellow-100 hover:text-yellow-600 transition"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-1">
+                    {displayedDeeds.filter(d => d.type === 'golden').map(deed => (
+                        isInlineEditMode ? (
+                            <InlineDeedEditor
+                                key={deed.id}
+                                deed={deed}
+                                weight={deedWeights[deed.id] !== undefined ? deedWeights[deed.id] : (deed.id === 'golden_night_prayer' || deed.id === 'golden_father_hand' || deed.id === 'golden_mother_hand' ? 20 : 10)}
+                                scoringSystem={scoringSystem}
+                                onWeightChange={(w) => handleWeightChange(deed.id, w)}
+                                onToggleActive={() => handleDeedToggleActive(deed.id, deed.isActive !== false ? false : true)}
+                                onTitleChange={(t) => handleDeedTitleEdit(deed.id, t)}
+                                onDelete={() => handleRemoveCustomDeed(deed.id)}
+                            />
+                        ) : (
+                            <DeedInput
+                                key={deed.id}
+                                deed={deed}
+                                value={scores[deed.id] || 0}
+                                onChange={(val) => handleScoreChange(deed.id, val)}
+                                customTitle={custom_titles[deed.id]}
+                                onCustomTitleChange={(title) => handleTitleChange(deed.id, title)}
+                                disabled={isReadOnly}
+                                scoringSystem={scoringSystem}
+                                deedWeight={deedWeights[deed.id] !== undefined ? deedWeights[deed.id] : (deed.id === 'golden_night_prayer' || deed.id === 'golden_father_hand' || deed.id === 'golden_mother_hand' ? 20 : 10)}
+                            />
+                        )
+                    ))}
+                </div>
+            </div>
+        )}
 
         {/* Sins Section */}
         <div className="mt-6">

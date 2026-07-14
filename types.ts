@@ -42,6 +42,11 @@ export interface AppSettings {
   customDeeds: DeedDefinition[];
   deedPreferences?: Record<string, DeedPreference>;
   deedOrder?: string[];
+  scoringSystem?: 'weighted_average' | 'points_sum';
+  targetPoints?: number;
+  deedWeights?: Record<string, number>;
+  sinPenalty?: number;
+  goldenBonus?: Record<string, number>;
 }
 
 export interface WorkoutSettings {

@@ -6,6 +6,7 @@ export interface DeedDefinition {
   title: string;
   type: DeedType;
   isCustom?: boolean; // To identify user-added deeds
+  isActive?: boolean;
 }
 
 export interface SinDefinition {
@@ -32,8 +33,15 @@ export interface DailyRecord {
   updated_at: number; // Unix timestamp for local storage, will be converted to ISO string for Supabase
 }
 
+export interface DeedPreference {
+  title?: string;
+  isActive?: boolean;
+}
+
 export interface AppSettings {
   customDeeds: DeedDefinition[];
+  deedPreferences?: Record<string, DeedPreference>;
+  deedOrder?: string[];
 }
 
 export interface WorkoutSettings {

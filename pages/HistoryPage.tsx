@@ -1,8 +1,8 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { loadState, loadSettings, loadWorkoutSettings } from '../services/storage';
+import { getConfiguredDeeds, getRecordDeeds, loadState, loadSettings, loadWorkoutSettings } from '../services/storage';
 import { DailyRecord } from '../types';
-import { DEEDS, SINS_LIST, QADA_ITEMS, WORKOUTS, toPersianDigits } from '../constants';
+import { SINS_LIST, QADA_ITEMS, WORKOUTS, toPersianDigits } from '../constants';
 import { WorkoutSelectorModal } from '../components/WorkoutSelectorModal';
 import { 
   Activity, 
@@ -69,13 +69,19 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ isDark }) => {
     const settings = loadSettings();
     const workoutSettings = loadWorkoutSettings();
     
-    const customDeeds = settings.customDeeds || [];
-    const combinedDeeds = [...DEEDS, ...customDeeds];
-    
+    const configuredDeeds = getConfiguredDeeds(settings, true);
+    const list: DailyRecord[] = Object.values(data).sort((a, b) => a.date.localeCompare(b.date));
+    const deedById = new Map(configuredDeeds.map(deed => [deed.id, deed]));
+    list.forEach(record => {
+      getRecordDeeds(record, configuredDeeds).forEach(deed => {
+        if (!deedById.has(deed.id)) deedById.set(deed.id, deed);
+      });
+    });
+    const combinedDeeds = Array.from(deedById.values());
+
     const customWorkouts = workoutSettings.customWorkouts || [];
     const combinedWorkouts = [...WORKOUTS, ...customWorkouts];
-    
-    const list: DailyRecord[] = Object.values(data).sort((a, b) => a.date.localeCompare(b.date));
+
     return { records: list, allDeeds: combinedDeeds, allWorkouts: combinedWorkouts };
   }, []);
 
@@ -131,9 +137,10 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ isDark }) => {
 
         // Deeds
         const dayDeedScores: Record<string, number> = {};
+        const recordDeeds = getRecordDeeds(r, allDeeds);
         let dayStars = 0;
 
-        allDeeds.forEach(d => {
+        recordDeeds.forEach(d => {
             const score = r.scores[d.id] || 0;
             deedStats[d.id].sum += score;
             if (score > 0) deedStats[d.id].count += 1;
@@ -184,9 +191,9 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ isDark }) => {
         }
 
         // Category Averages for this day
-        const getCatAvg = (type: string) => {
-            const relevant = allDeeds.filter(d => d.type === type);
-            if (!relevant.length) return 0;
+        const getCatAvg = (type: string): number | null => {
+            const relevant = recordDeeds.filter(d => d.type === type);
+            if (!relevant.length) return null;
             const sum = relevant.reduce((a, b) => a + (r.scores[b.id] || 0), 0);
             return sum / relevant.length;
         };
@@ -238,10 +245,16 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ isDark }) => {
     const weaknesses = activeDeeds.length > 3 ? [...activeDeeds].reverse().slice(0, 3) : [];
 
     // Categories for Radar Chart
+    const getAvailableCategoryAverage = (key: 'prayer_avg' | 'scalar_avg' | 'binary_avg') => {
+        const values = dailyData
+            .map(day => day[key])
+            .filter((value): value is number => value !== null);
+        return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+    };
     const categoryRadar = [
-        { subject: 'نمازها', A: dailyData.reduce((a,b) => a + b.prayer_avg, 0) / dailyData.length, fullMark: 100 },
-        { subject: 'اخلاقیات', A: dailyData.reduce((a,b) => a + b.scalar_avg, 0) / dailyData.length, fullMark: 100 },
-        { subject: 'قراردادی', A: dailyData.reduce((a,b) => a + b.binary_avg, 0) / dailyData.length, fullMark: 100 },
+        { subject: 'نمازها', A: getAvailableCategoryAverage('prayer_avg'), fullMark: 100 },
+        { subject: 'اخلاقیات', A: getAvailableCategoryAverage('scalar_avg'), fullMark: 100 },
+        { subject: 'قراردادی', A: getAvailableCategoryAverage('binary_avg'), fullMark: 100 },
         { subject: 'امتیاز کل', A: totalScoreSum / filteredRecords.length, fullMark: 100 },
     ];
 

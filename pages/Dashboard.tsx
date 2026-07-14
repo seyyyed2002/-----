@@ -1,11 +1,12 @@
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { DEEDS, getTodayStr, toPersianDigits } from '../constants';
-import { DailyRecord, DeedDefinition, DeedType } from '../types';
-import { saveRecord, getRecord, loadSettings, saveCustomDeed, removeCustomDeed, loadQada, saveQada } from '../services/storage';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { getTodayStr, toPersianDigits } from '../constants';
+import { AppSettings, DailyRecord, DeedDefinition, DeedType } from '../types';
+import { DEED_SNAPSHOT_KEY, getConfiguredDeeds, getRecordDeeds, serializeDeedSnapshot, saveRecord, getRecord, loadSettings, saveCustomDeed, saveDeedConfiguration, loadQada, saveQada } from '../services/storage';
 import { DeedInput } from '../components/DeedInput';
+import { DeedManagerModal } from '../components/DeedManagerModal';
 import { SinInput } from '../components/SinInput';
-import { Save, ChevronLeft, ChevronRight, Lock, Star, Plus, X, AlertCircle } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Lock, Star, Plus, X, AlertCircle, Settings2 } from 'lucide-react';
 
 interface DashboardProps {
   initialDate?: string;
@@ -18,16 +19,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
   const [sins, setSins] = useState<string[]>([]);
   const [custom_titles, setCustomTitles] = useState<Record<string, string>>({});
   const [report, setReport] = useState('');
+  const [savedTotalAverage, setSavedTotalAverage] = useState<number | null>(null);
+  const [recordDeeds, setRecordDeeds] = useState<DeedDefinition[] | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [showValidationError, setShowValidationError] = useState(false);
   const [showQadaAdded, setShowQadaAdded] = useState(false);
   
-  // Custom Deeds State
-  const [customDeeds, setCustomDeeds] = useState<DeedDefinition[]>([]);
+  // Daily deed configuration
+  const [settings, setSettings] = useState<AppSettings>({ customDeeds: [] });
+  const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalType, setAddModalType] = useState<DeedType>('binary');
   const [newDeedTitle, setNewDeedTitle] = useState('');
+  const closeManager = useCallback(() => setIsManagerOpen(false), []);
 
   // Generate random star positions once on mount (stable across renders)
   const randomStars = useMemo(() => {
@@ -40,18 +45,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
       }));
   }, []);
 
-  // Combine static and custom deeds
-  const allDeeds = useMemo(() => [...DEEDS, ...customDeeds], [customDeeds]);
+  const configuredDeeds = useMemo(() => getConfiguredDeeds(settings, true), [settings]);
+  const allDeeds = useMemo(
+    () => configuredDeeds.filter(deed => deed.isActive !== false),
+    [configuredDeeds]
+  );
 
   // Calculate readonly state
   const today = getTodayStr();
   const isReadOnly = date !== today;
+  const displayedDeeds = isReadOnly ? (recordDeeds ?? []) : allDeeds;
 
   // Load data and settings
   useEffect(() => {
-    // Load Custom Deeds from Settings
-    const settings = loadSettings();
-    setCustomDeeds(settings.customDeeds);
+    const loadedSettings = loadSettings();
+    const knownDeeds = getConfiguredDeeds(loadedSettings, true);
+    setSettings(loadedSettings);
 
     const record = getRecord(date);
     if (record) {
@@ -59,12 +68,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
       setReport(record.report);
       setCustomTitles(record.custom_titles || {});
       setSins(record.sins || []);
+      setSavedTotalAverage(record.total_average);
+      setRecordDeeds(getRecordDeeds(record, knownDeeds));
     } else {
       const initialScores: Record<string, number> = {};
       setScores(initialScores);
       setReport('');
       setCustomTitles({});
       setSins([]);
+      setSavedTotalAverage(null);
+      setRecordDeeds(null);
     }
     
     if (onDateChange) onDateChange(date);
@@ -103,23 +116,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
     };
     
     // Save to persistence
-    const updatedList = saveCustomDeed(newDeed);
-    setCustomDeeds(updatedList);
+    saveCustomDeed(newDeed);
+    setSettings(loadSettings());
     setIsAddModalOpen(false);
   };
 
-  const handleDeleteCustomDeed = (id: string) => {
-      const updatedList = removeCustomDeed(id);
-      setCustomDeeds(updatedList);
-      
-      // Clean up current score state for this deleted deed
-      const newScores = { ...scores };
-      delete newScores[id];
-      setScores(newScores);
+  const handleSaveDeedConfiguration = (deeds: DeedDefinition[]) => {
+    const updatedSettings = saveDeedConfiguration(deeds);
+    setSettings(updatedSettings);
+    setIsManagerOpen(false);
   };
   // ----------------------
 
-  const total_average = useMemo(() => {
+  const calculatedTotalAverage = useMemo(() => {
     let totalWeightedScore = 0;
     let totalWeight = 0;
     let goldenBonus = 0;
@@ -161,9 +170,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
     return Math.round(finalScore);
   }, [scores, sins, allDeeds]);
 
+  const total_average = isReadOnly && savedTotalAverage !== null
+    ? savedTotalAverage
+    : calculatedTotalAverage;
+
   const goldenStarsCount = useMemo(() => {
     let count = 0;
-    allDeeds.forEach(d => {
+    displayedDeeds.forEach(d => {
         if (d.type === 'golden' && scores[d.id] === 100) {
             // Add 2 stars for night prayer, 1 for others
             if (d.id === 'golden_night_prayer' || d.id === 'golden_father_hand' || d.id === 'golden_mother_hand') {
@@ -174,7 +187,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
         }
     });
     return count;
-  }, [scores, allDeeds]);
+  }, [scores, displayedDeeds]);
 
   const getScoreColorClass = (score: number) => {
     if (score > 100) {
@@ -255,11 +268,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
         }
     }
 
+    const scoresToSave = { ...scores };
+    allDeeds.forEach(deed => {
+      if (scoresToSave[deed.id] === undefined) {
+        scoresToSave[deed.id] = 0;
+      }
+    });
+
     const record: DailyRecord = {
       date,
-      scores,
+      scores: scoresToSave,
       sins,
-      custom_titles,
+      custom_titles: {
+        ...custom_titles,
+        [DEED_SNAPSHOT_KEY]: serializeDeedSnapshot(allDeeds)
+      },
       report,
       total_average,
       updated_at: Date.now()
@@ -299,6 +322,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
             </div>
             <span>به لیست قضا اضافه شد</span>
         </div>
+      )}
+
+      {isManagerOpen && (
+        <DeedManagerModal
+          deeds={configuredDeeds}
+          onClose={closeManager}
+          onSave={handleSaveDeedConfiguration}
+        />
       )}
 
       {/* Add Deed Modal */}
@@ -433,6 +464,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
 
       {/* Deeds List */}
       <div className="space-y-3">
+        <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <div>
+            <h2 className="text-sm font-bold text-gray-700 dark:text-gray-200">معیارهای امتیاز روزانه</h2>
+            <p className="mt-1 text-[11px] text-gray-400">
+              {isReadOnly
+                ? savedTotalAverage === null
+                  ? 'گزارشی برای این روز ثبت نشده است'
+                  : `${toPersianDigits(displayedDeeds.length)} مورد ثبت‌شده در این روز`
+                : `${toPersianDigits(allDeeds.length)} مورد فعال و قابل محاسبه`}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsManagerOpen(true)}
+            className="flex items-center gap-2 rounded-xl bg-primary-50 px-3 py-2 text-xs font-bold text-primary-600 transition hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-400"
+          >
+            <Settings2 className="h-4 w-4" />
+            شخصی‌سازی
+          </button>
+        </div>
+
         {/* Binary Section */}
         <div className="flex items-center justify-between px-2">
             <h3 className="text-gray-500 dark:text-gray-400 font-bold text-sm">اعمال قراردادی</h3>
@@ -444,14 +496,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
             </button>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-            {allDeeds.filter(d => d.type === 'binary').map(deed => (
+            {displayedDeeds.filter(d => d.type === 'binary').map(deed => (
             <DeedInput
                 key={deed.id}
                 deed={deed}
                 value={scores[deed.id] || 0}
                 onChange={(val) => handleScoreChange(deed.id, val)}
                 disabled={isReadOnly}
-                onDelete={deed.isCustom ? () => handleDeleteCustomDeed(deed.id) : undefined}
             />
             ))}
         </div>
@@ -467,14 +518,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
             </button>
         </div>
         <div className="grid gap-3 sm:grid-cols-1">
-            {allDeeds.filter(d => d.type === 'scalar' || d.type === 'prayer').map(deed => (
+            {displayedDeeds.filter(d => d.type === 'scalar' || d.type === 'prayer').map(deed => (
             <DeedInput
                 key={deed.id}
                 deed={deed}
                 value={scores[deed.id] || 0}
                 onChange={(val) => handleScoreChange(deed.id, val)}
                 disabled={isReadOnly}
-                onDelete={deed.isCustom ? () => handleDeleteCustomDeed(deed.id) : undefined}
             />
             ))}
         </div>
@@ -493,7 +543,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
             </button>
         </div>
         <div className="grid gap-3 sm:grid-cols-1">
-            {allDeeds.filter(d => d.type === 'golden').map(deed => (
+            {displayedDeeds.filter(d => d.type === 'golden').map(deed => (
             <DeedInput
                 key={deed.id}
                 deed={deed}
@@ -502,7 +552,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
                 customTitle={custom_titles[deed.id]}
                 onCustomTitleChange={(title) => handleTitleChange(deed.id, title)}
                 disabled={isReadOnly}
-                onDelete={deed.isCustom ? () => handleDeleteCustomDeed(deed.id) : undefined}
             />
             ))}
         </div>
@@ -551,7 +600,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
       </div>
 
       {/* Floating Action Button for Save */}
-      {!isReadOnly && (
+      {!isReadOnly && !isManagerOpen && !isAddModalOpen && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-3xl pb-4 flex justify-center z-[90] pointer-events-none">
             <button
                 onClick={handleSave}

@@ -6,7 +6,7 @@ import { DEED_SNAPSHOT_KEY, getConfiguredDeeds, getRecordDeeds, serializeDeedSna
 import { DeedInput } from '../components/DeedInput';
 import { DeedManagerModal } from '../components/DeedManagerModal';
 import { SinInput } from '../components/SinInput';
-import { Save, ChevronLeft, ChevronRight, Lock, Star, Plus, X, AlertCircle, Settings2, Sliders, Edit2, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Lock, Star, Plus, X, AlertCircle, Settings2, Sliders, Edit2, Eye, EyeOff, Trash2, ChevronDown } from 'lucide-react';
 
 interface DashboardProps {
   initialDate?: string;

@@ -71,12 +71,13 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ isDark }) => {
     
     const customDeeds = settings.customDeeds || [];
     const combinedDeeds = [...DEEDS, ...customDeeds];
+    const activeDeeds = settings.activeDeeds || combinedDeeds;
     
     const customWorkouts = workoutSettings.customWorkouts || [];
     const combinedWorkouts = [...WORKOUTS, ...customWorkouts];
     
     const list: DailyRecord[] = Object.values(data).sort((a, b) => a.date.localeCompare(b.date));
-    return { records: list, allDeeds: combinedDeeds, allWorkouts: combinedWorkouts };
+    return { records: list, allDeeds: activeDeeds, allWorkouts: combinedWorkouts };
   }, []);
 
   // Set default selected workout
@@ -144,8 +145,8 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ isDark }) => {
 
             // Count stars
             if (d.type === 'golden' && score === 100) {
-                const isDouble = d.id === 'golden_night_prayer' || d.id === 'golden_father_hand' || d.id === 'golden_mother_hand';
-                const stars = isDouble ? 2 : 1;
+                const weight = d.weight || 1;
+                const stars = weight >= 4 ? 2 : 1;
                 dayStars += stars;
 
                 // Salawat Counter

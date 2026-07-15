@@ -1,16 +1,85 @@
-
 import React, { useEffect, useMemo, useState } from 'react';
 import { DEEDS, getTodayStr, toPersianDigits } from '../constants';
 import { DailyRecord, DeedDefinition, DeedType } from '../types';
-import { saveRecord, getRecord, loadSettings, saveCustomDeed, removeCustomDeed, loadQada, saveQada } from '../services/storage';
+import {
+  saveRecord,
+  getRecord,
+  loadSettings,
+  saveCustomDeed,
+  removeCustomDeed,
+  loadQada,
+  saveQada,
+  saveActiveDeeds
+} from '../services/storage';
 import { DeedInput } from '../components/DeedInput';
 import { SinInput } from '../components/SinInput';
-import { Save, ChevronLeft, ChevronRight, Lock, Star, Plus, X, AlertCircle } from 'lucide-react';
+import {
+  Save,
+  ChevronLeft,
+  ChevronRight,
+  Lock,
+  Star,
+  Plus,
+  X,
+  AlertCircle,
+  Settings,
+  Check,
+  Trash2,
+  BookOpen,
+  Heart,
+  Sparkles,
+  Info,
+  Sliders,
+  CheckSquare,
+  Bookmark,
+  Activity,
+  Layers,
+  Wrench,
+  HelpCircle
+} from 'lucide-react';
 
 interface DashboardProps {
   initialDate?: string;
   onDateChange?: (date: string) => void;
 }
+
+const CATEGORY_LABELS: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+  obligatory: {
+    label: 'نمازهای واجب',
+    icon: <span className="text-emerald-500 font-bold">🕌</span>,
+    color: 'border-emerald-100 dark:border-emerald-900/30'
+  },
+  supererogatory_prayers: {
+    label: 'نمازهای مستحب',
+    icon: <span className="text-teal-500">✨</span>,
+    color: 'border-teal-100 dark:border-teal-900/30'
+  },
+  duas: {
+    label: 'ادعیه و زیارات',
+    icon: <BookOpen className="w-4 h-4 text-indigo-500" />,
+    color: 'border-indigo-100 dark:border-indigo-900/30'
+  },
+  quran: {
+    label: 'سوره‌های قرآن',
+    icon: <BookOpen className="w-4 h-4 text-blue-500" />,
+    color: 'border-blue-100 dark:border-blue-900/30'
+  },
+  recommended: {
+    label: 'کارهای مستحب',
+    icon: <Heart className="w-4 h-4 text-rose-500" />,
+    color: 'border-rose-100 dark:border-rose-900/30'
+  },
+  morals: {
+    label: 'مراقبه‌های خاص (اخلاقی)',
+    icon: <Activity className="w-4 h-4 text-amber-500" />,
+    color: 'border-amber-100 dark:border-amber-900/30'
+  },
+  golden: {
+    label: 'اعمال طلایی (پاداش ویژه)',
+    icon: <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />,
+    color: 'border-yellow-100 dark:border-yellow-900/30'
+  }
+};
 
 export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange }) => {
   const [date, setDate] = useState(initialDate || getTodayStr());
@@ -23,11 +92,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
   const [showValidationError, setShowValidationError] = useState(false);
   const [showQadaAdded, setShowQadaAdded] = useState(false);
   
-  // Custom Deeds State
+  // Custom & Active Deeds State
   const [customDeeds, setCustomDeeds] = useState<DeedDefinition[]>([]);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [addModalType, setAddModalType] = useState<DeedType>('binary');
-  const [newDeedTitle, setNewDeedTitle] = useState('');
+  const [activeDeeds, setActiveDeeds] = useState<DeedDefinition[]>([]);
+
+  // Builder Mode State
+  const [isBuilderMode, setIsBuilderMode] = useState(false);
+  const [builderTab, setBuilderTab] = useState<string>('supererogatory_prayers');
+
+  // Custom Deed Form State inside Builder
+  const [newCustomTitle, setNewCustomTitle] = useState('');
+  const [newCustomCategory, setNewCustomCategory] = useState('morals');
+  const [newCustomType, setNewCustomType] = useState<DeedType>('scalar');
+  const [newCustomWeight, setNewCustomWeight] = useState(1);
 
   // Generate random star positions once on mount (stable across renders)
   const randomStars = useMemo(() => {
@@ -40,28 +117,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
       }));
   }, []);
 
-  // Combine static and custom deeds
-  const allDeeds = useMemo(() => [...DEEDS, ...customDeeds], [customDeeds]);
-
   // Calculate readonly state
   const today = getTodayStr();
   const isReadOnly = date !== today;
 
   // Load data and settings
   useEffect(() => {
-    // Load Custom Deeds from Settings
     const settings = loadSettings();
-    setCustomDeeds(settings.customDeeds);
+    setCustomDeeds(settings.customDeeds || []);
+    setActiveDeeds(settings.activeDeeds || DEEDS);
 
     const record = getRecord(date);
     if (record) {
-      setScores(record.scores);
-      setReport(record.report);
+      setScores(record.scores || {});
+      setReport(record.report || '');
       setCustomTitles(record.custom_titles || {});
       setSins(record.sins || []);
     } else {
-      const initialScores: Record<string, number> = {};
-      setScores(initialScores);
+      setScores({});
       setReport('');
       setCustomTitles({});
       setSins([]);
@@ -85,67 +158,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
     setSins(newSins);
   };
 
-  // --- Add/Remove Deed Logic ---
-  const openAddModal = (type: DeedType) => {
-    setAddModalType(type);
-    setNewDeedTitle('');
-    setIsAddModalOpen(true);
-  };
-
-  const handleAddDeed = () => {
-    if (!newDeedTitle.trim()) return;
-    const id = `custom_${addModalType}_${Date.now()}`;
-    const newDeed: DeedDefinition = {
-        id,
-        title: newDeedTitle,
-        type: addModalType,
-        isCustom: true
-    };
-    
-    // Save to persistence
-    const updatedList = saveCustomDeed(newDeed);
-    setCustomDeeds(updatedList);
-    setIsAddModalOpen(false);
-  };
-
-  const handleDeleteCustomDeed = (id: string) => {
-      const updatedList = removeCustomDeed(id);
-      setCustomDeeds(updatedList);
-      
-      // Clean up current score state for this deleted deed
-      const newScores = { ...scores };
-      delete newScores[id];
-      setScores(newScores);
-  };
-  // ----------------------
-
+  // --- Dynamic Calculations based on active deeds and custom weights ---
   const total_average = useMemo(() => {
     let totalWeightedScore = 0;
     let totalWeight = 0;
     let goldenBonus = 0;
 
-    allDeeds.forEach((deed) => {
+    activeDeeds.forEach((deed) => {
       const score = scores[deed.id] || 0;
 
       if (deed.type === 'golden') {
-          // Golden logic: Add to bonus, do not affect base average denominator
+          // Golden logic: Bonus is weight * 5 if complete (100)
           if (score === 100) {
-              if (deed.id === 'golden_night_prayer' || deed.id === 'golden_father_hand' || deed.id === 'golden_mother_hand') {
-                  goldenBonus += 20;
-              } else {
-                  goldenBonus += 10;
-              }
+              const weight = deed.weight || 1;
+              goldenBonus += weight * 5;
           }
       } else {
           // Normal deeds contribute to weighted average
-          let weight = 1;
-          
-          if (deed.type === 'prayer') {
-             weight = 2;
-          } else if (deed.id === 'gaze_control' || deed.id === 'truthfulness') {
-            weight = 3;
-          }
-          
+          const weight = deed.weight || 1;
           totalWeightedScore += score * weight;
           totalWeight += weight;
       }
@@ -159,14 +189,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
     const finalScore = baseAverage + goldenBonus - penalty;
     
     return Math.round(finalScore);
-  }, [scores, sins, allDeeds]);
+  }, [scores, sins, activeDeeds]);
 
   const goldenStarsCount = useMemo(() => {
     let count = 0;
-    allDeeds.forEach(d => {
+    activeDeeds.forEach(d => {
         if (d.type === 'golden' && scores[d.id] === 100) {
-            // Add 2 stars for night prayer, 1 for others
-            if (d.id === 'golden_night_prayer' || d.id === 'golden_father_hand' || d.id === 'golden_mother_hand') {
+            const weight = d.weight || 1;
+            if (weight >= 4) {
                 count += 2;
             } else {
                 count += 1;
@@ -174,44 +204,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
         }
     });
     return count;
-  }, [scores, allDeeds]);
+  }, [scores, activeDeeds]);
 
   const getScoreColorClass = (score: number) => {
     if (score > 100) {
-        // Golden Gradient for > 100 with intense shine
         return 'bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-600 border-yellow-300 shadow-yellow-500/50';
     }
-
     if (score < 0) return 'bg-gradient-to-br from-red-800 to-rose-950';
     
     const tens = Math.floor(score / 10);
     
     switch (tens) {
-        case 0: return 'bg-gradient-to-br from-red-600 to-orange-800'; // 0-9
-        case 1: return 'bg-gradient-to-br from-orange-700 to-orange-900'; // 10-19
-        case 2: return 'bg-gradient-to-br from-orange-600 to-amber-800'; // 20-29
-        case 3: return 'bg-gradient-to-br from-orange-500 to-amber-700'; // 30-39
-        case 4: return 'bg-gradient-to-br from-amber-600 to-yellow-700'; // 40-49
-        case 5: return 'bg-gradient-to-br from-yellow-600 to-lime-800'; // 50-59
-        case 6: return 'bg-gradient-to-br from-lime-600 to-green-800'; // 60-69
-        case 7: return 'bg-gradient-to-br from-green-600 to-emerald-800'; // 70-79
-        case 8: return 'bg-gradient-to-br from-emerald-600 to-teal-800'; // 80-89
-        case 9: return 'bg-gradient-to-br from-teal-500 to-cyan-700'; // 90-99
-        case 10: return 'bg-gradient-to-br from-cyan-500 to-blue-600'; // 100
-        default: return 'bg-gradient-to-br from-cyan-500 to-blue-600'; // Fallback
+        case 0: return 'bg-gradient-to-br from-red-600 to-orange-800';
+        case 1: return 'bg-gradient-to-br from-orange-700 to-orange-900';
+        case 2: return 'bg-gradient-to-br from-orange-600 to-amber-800';
+        case 3: return 'bg-gradient-to-br from-orange-500 to-amber-700';
+        case 4: return 'bg-gradient-to-br from-amber-600 to-yellow-700';
+        case 5: return 'bg-gradient-to-br from-yellow-600 to-lime-800';
+        case 6: return 'bg-gradient-to-br from-lime-600 to-green-800';
+        case 7: return 'bg-gradient-to-br from-green-600 to-emerald-800';
+        case 8: return 'bg-gradient-to-br from-emerald-600 to-teal-800';
+        case 9: return 'bg-gradient-to-br from-teal-500 to-cyan-700';
+        case 10: return 'bg-gradient-to-br from-cyan-500 to-blue-600';
+        default: return 'bg-gradient-to-br from-cyan-500 to-blue-600';
     }
   };
 
   const handleSave = () => {
     if (isReadOnly) return;
 
-    // Validation
     if (!report || !report.trim()) {
         setShowValidationError(true);
-        // Auto hide error after a few seconds
         setTimeout(() => setShowValidationError(false), 2500);
         
-        // Try to focus/scroll to textarea
         const textarea = document.getElementById('report-textarea');
         if (textarea) {
             textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -228,17 +253,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
     const qadaData = loadQada();
     let qadaChanged = false;
 
-    // Helper to check Qada logic
     const updateQadaForPrayer = (key: string, qadaKeys: ('fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha')[]) => {
         const isNowQada = scores[key] === -100;
         const wasQada = originalScores[key] === -100;
 
         if (isNowQada && !wasQada) {
-            // Added Qada
             qadaKeys.forEach(k => qadaData[k] += 1);
             qadaChanged = true;
         } else if (!isNowQada && wasQada) {
-            // Removed Qada
             qadaKeys.forEach(k => qadaData[k] = Math.max(0, qadaData[k] - 1));
             qadaChanged = true;
         }
@@ -250,9 +272,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
 
     if (qadaChanged) {
         saveQada(qadaData);
-        if (Object.values(scores).some(v => v === -100) && !Object.values(originalScores).some(v => v === -100)) {
-             // Only show added toast if it was a net addition (simplification) or just let it save silently as part of global save
-        }
     }
 
     const record: DailyRecord = {
@@ -288,6 +307,106 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
 
   const persianDate = new Date(date).toLocaleDateString('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
+  // --- Elementor Builder Actions ---
+  const handleToggleDeedActive = (deed: DeedDefinition) => {
+    const isCurrentlyActive = activeDeeds.some(d => d.id === deed.id);
+    let updatedActive: DeedDefinition[];
+
+    if (isCurrentlyActive) {
+      if (deed.isMandatory) return; // Prayers are mandatory!
+      updatedActive = activeDeeds.filter(d => d.id !== deed.id);
+    } else {
+      updatedActive = [...activeDeeds, { ...deed }];
+    }
+
+    const saved = saveActiveDeeds(updatedActive);
+    setActiveDeeds(saved);
+  };
+
+  const handleUpdateDeedWeight = (id: string, weight: number) => {
+    const updatedActive = activeDeeds.map(d => {
+      if (d.id === id) {
+        return { ...d, weight };
+      }
+      return d;
+    });
+    const saved = saveActiveDeeds(updatedActive);
+    setActiveDeeds(saved);
+  };
+
+  const handleUpdateDeedType = (id: string, type: DeedType) => {
+    const updatedActive = activeDeeds.map(d => {
+      if (d.id === id) {
+        return { ...d, type };
+      }
+      return d;
+    });
+    const saved = saveActiveDeeds(updatedActive);
+    setActiveDeeds(saved);
+  };
+
+  const handleAddCustomDeedInBuilder = () => {
+    if (!newCustomTitle.trim()) return;
+    const id = `custom_${newCustomType}_${Date.now()}`;
+    const newDeed: DeedDefinition = {
+        id,
+        title: newCustomTitle.trim(),
+        type: newCustomType,
+        category: newCustomCategory,
+        weight: newCustomWeight,
+        isCustom: true
+    };
+
+    const updatedCustom = saveCustomDeed(newDeed);
+    setCustomDeeds(updatedCustom);
+
+    // Auto add to active list
+    const updatedActive = [...activeDeeds, newDeed];
+    const savedActive = saveActiveDeeds(updatedActive);
+    setActiveDeeds(savedActive);
+
+    setNewCustomTitle('');
+  };
+
+  const handleDeleteCustomDeedInBuilder = (id: string) => {
+    const updatedCustom = removeCustomDeed(id);
+    setCustomDeeds(updatedCustom);
+
+    // Also remove from active list
+    const updatedActive = activeDeeds.filter(d => d.id !== id);
+    const savedActive = saveActiveDeeds(updatedActive);
+    setActiveDeeds(savedActive);
+
+    // Clean up current score state for this deleted deed
+    const newScores = { ...scores };
+    delete newScores[id];
+    setScores(newScores);
+  };
+
+  // Group active deeds by category
+  const activeDeedsByCategory = useMemo(() => {
+    const groups: Record<string, DeedDefinition[]> = {};
+    activeDeeds.forEach(deed => {
+      const cat = deed.category || 'custom';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(deed);
+    });
+    return groups;
+  }, [activeDeeds]);
+
+  // Combined master list of all templates (predefined + custom user-created)
+  const masterTemplates = useMemo(() => {
+    // Merge predefined DEEDS and custom deeds
+    // Avoid duplicates by checking ids
+    const combined = [...DEEDS];
+    customDeeds.forEach(cd => {
+      if (!combined.some(d => d.id === cd.id)) {
+        combined.push(cd);
+      }
+    });
+    return combined;
+  }, [customDeeds]);
+
   return (
     <div className="space-y-6 relative">
         
@@ -301,48 +420,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
         </div>
       )}
 
-      {/* Add Deed Modal */}
-      {isAddModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-sm shadow-xl border border-gray-100 dark:border-gray-700">
-                  <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">
-                          افزودن مورد جدید
-                      </h3>
-                      <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                          <X className="w-5 h-5" />
-                      </button>
-                  </div>
-                  
-                  <input 
-                      type="text" 
-                      value={newDeedTitle}
-                      onChange={(e) => setNewDeedTitle(e.target.value)}
-                      placeholder="عنوان عمل را وارد کنید..."
-                      className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none mb-6"
-                      autoFocus
-                  />
-                  
-                  <div className="flex gap-3">
-                      <button 
-                        onClick={() => setIsAddModalOpen(false)}
-                        className="flex-1 py-2 rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                      >
-                          انصراف
-                      </button>
-                      <button 
-                        onClick={handleAddDeed}
-                        disabled={!newDeedTitle.trim()}
-                        className="flex-1 py-2 rounded-xl bg-primary-600 text-white font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                      >
-                          افزودن
-                      </button>
-                  </div>
-              </div>
-          </div>
-      )}  
-
-      {/* Date Selector & Score Card */}
+      {/* Date Selector & Score Card (KEPT EXACTLY UNCHANGED AS REQUESTED) */}
       <div className={`${getScoreColorClass(total_average)} rounded-3xl p-6 text-white shadow-lg relative overflow-hidden transition-all duration-700`}>
          
          {/* Starry Animation for Golden Score (> 100) */}
@@ -431,97 +509,433 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
         </div>
       </div>
 
-      {/* Deeds List */}
-      <div className="space-y-3">
-        {/* Binary Section */}
-        <div className="flex items-center justify-between px-2">
-            <h3 className="text-gray-500 dark:text-gray-400 font-bold text-sm">اعمال قراردادی</h3>
-            <button 
-                onClick={() => openAddModal('binary')}
-                className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-primary-100 hover:text-primary-600 transition"
-            >
-                <Plus className="w-4 h-4" />
-            </button>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-            {allDeeds.filter(d => d.type === 'binary').map(deed => (
-            <DeedInput
-                key={deed.id}
-                deed={deed}
-                value={scores[deed.id] || 0}
-                onChange={(val) => handleScoreChange(deed.id, val)}
-                disabled={isReadOnly}
-                onDelete={deed.isCustom ? () => handleDeleteCustomDeed(deed.id) : undefined}
-            />
-            ))}
-        </div>
 
-        {/* Scalar Section */}
-        <div className="flex items-center justify-between px-2 mt-6">
-            <h3 className="text-gray-500 dark:text-gray-400 font-bold text-sm">مراقبه‌های اخلاقی (کیفی)</h3>
-            <button 
-                onClick={() => openAddModal('scalar')}
-                className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-primary-100 hover:text-primary-600 transition"
-            >
-                <Plus className="w-4 h-4" />
-            </button>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-1">
-            {allDeeds.filter(d => d.type === 'scalar' || d.type === 'prayer').map(deed => (
-            <DeedInput
-                key={deed.id}
-                deed={deed}
-                value={scores[deed.id] || 0}
-                onChange={(val) => handleScoreChange(deed.id, val)}
-                disabled={isReadOnly}
-                onDelete={deed.isCustom ? () => handleDeleteCustomDeed(deed.id) : undefined}
-            />
-            ))}
-        </div>
+      {/* REDESIGNED NOTEBOOK SECTION (ELEMENTOR SYSTEM) */}
+      <div className="space-y-6">
 
-        {/* Golden Section */}
-        <div className="flex items-center justify-between px-2 mt-6">
-            <h3 className="text-yellow-600 dark:text-yellow-500 font-bold text-sm flex items-center gap-2">
-                <Star className="w-4 h-4 fill-current" />
-                اعمال طلایی (پاداش ویژه)
-            </h3>
-            <button 
-                onClick={() => openAddModal('golden')}
-                className="w-6 h-6 rounded-full bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center hover:bg-yellow-100 hover:text-yellow-600 transition"
+        {/* Builder Mode Toggle Button */}
+        {!isReadOnly && (
+          <div className="flex justify-center">
+            <button
+              onClick={() => setIsBuilderMode(!isBuilderMode)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold shadow-md border transition-all transform active:scale-95 ${
+                isBuilderMode
+                  ? 'bg-amber-500 hover:bg-amber-600 border-amber-400 text-white shadow-amber-500/20'
+                  : 'bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 border-primary-500 text-white shadow-primary-500/10'
+              }`}
             >
-                <Plus className="w-4 h-4" />
+              {isBuilderMode ? (
+                <>
+                  <X className="w-4 h-4" />
+                  <span>پایان شخصی‌سازی و بازگشت به دفترچه</span>
+                </>
+              ) : (
+                <>
+                  <Wrench className="w-4 h-4 animate-bounce" />
+                  <span>⚙️ شخصی‌سازی و چیدمان برنامه (المنتور)</span>
+                </>
+              )}
             </button>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-1">
-            {allDeeds.filter(d => d.type === 'golden').map(deed => (
-            <DeedInput
-                key={deed.id}
-                deed={deed}
-                value={scores[deed.id] || 0}
-                onChange={(val) => handleScoreChange(deed.id, val)}
-                customTitle={custom_titles[deed.id]}
-                onCustomTitleChange={(title) => handleTitleChange(deed.id, title)}
-                disabled={isReadOnly}
-                onDelete={deed.isCustom ? () => handleDeleteCustomDeed(deed.id) : undefined}
-            />
-            ))}
-        </div>
+          </div>
+        )}
 
-        {/* Sins Section */}
-        <div className="mt-6">
-            <SinInput 
-                selectedSins={sins} 
-                onChange={handleSinsChange} 
-                disabled={isReadOnly}
-            />
-        </div>
+        {/* VISUAL BUILDER MODE (wordpress elementor-style workspace) */}
+        {isBuilderMode ? (
+          <div className="bg-gray-50 dark:bg-gray-900/60 p-4 md:p-6 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-800 space-y-6 animate-scale-in">
+
+            {/* Builder Header info */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-start gap-3">
+              <div className="bg-amber-100 dark:bg-amber-950 p-2.5 rounded-xl text-amber-600 dark:text-amber-400">
+                <Settings className="w-5 h-5 animate-spin-slow" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm">صفحه کار چیدمان برنامه (طرح المنتور وردپرس)</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                  برنامه روزانه خود را دلخواه بچینید! اعمال مورد نیاز خود را با یک کلیک از کتابخانه جامع انتخاب کرده و وارد پنل کاری (دفترچه مراقبه) خود کنید. ضریب اهمیت (وزن) و نوع ارزیابی هر عمل را به دلخواه مشخص نمایید.
+                </p>
+              </div>
+            </div>
+
+            {/* Split Panel Columns */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+              {/* Columns Left: Active Program (Chidemane Daftarche) */}
+              <div className="lg:col-span-5 space-y-4">
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <h4 className="font-bold text-gray-800 dark:text-gray-200 text-xs mb-3 flex items-center justify-between border-b pb-2 border-gray-100 dark:border-gray-700">
+                    <span>📑 دفترچه مراقبه روزانه شما ({toPersianDigits(activeDeeds.length)} مورد)</span>
+                    <span className="text-[10px] text-gray-400">اعمال فعال در چک‌لیست</span>
+                  </h4>
+
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto pl-1">
+                    {Object.entries(CATEGORY_LABELS).map(([catKey, catInfo]) => {
+                      const deeds = activeDeedsByCategory[catKey] || [];
+                      if (deeds.length === 0) return null;
+
+                      return (
+                        <div key={catKey} className="space-y-2">
+                          <h5 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 flex items-center gap-1.5 px-1 pt-2">
+                            {catInfo.icon}
+                            {catInfo.label}
+                          </h5>
+
+                          <div className="space-y-2">
+                            {deeds.map(deed => (
+                              <div
+                                key={deed.id}
+                                className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-800 flex flex-col gap-2.5 transition-all"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300 truncate">
+                                    {deed.title}
+                                  </span>
+
+                                  {deed.isMandatory ? (
+                                    <div className="text-[10px] bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 px-2 py-0.5 rounded-full flex items-center gap-0.5 font-bold">
+                                      <Lock className="w-2.5 h-2.5" />
+                                      <span>پیش‌فرض</span>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleToggleDeedActive(deed)}
+                                      className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 p-1 rounded-full transition"
+                                      title="حذف از چک‌لیست"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* Customizers: Weights & Type */}
+                                <div className="flex justify-between items-center gap-3 border-t border-gray-100 dark:border-gray-800/80 pt-2 flex-wrap">
+
+                                  {/* Weight selector */}
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[10px] text-gray-400">ضریب (وزن):</span>
+                                    <select
+                                      value={deed.weight || 1}
+                                      onChange={(e) => handleUpdateDeedWeight(deed.id, Number(e.target.value))}
+                                      className="text-[10px] font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-primary-500"
+                                    >
+                                      {[1, 2, 3, 4, 5].map(w => (
+                                        <option key={w} value={w}>{toPersianDigits(w)}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  {/* Type toggle switch (Qualitative/Scalar Slider or Quantitative/Binary Checkbox) */}
+                                  {!deed.isMandatory && deed.type !== 'golden' && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[10px] text-gray-400">ارزیابی:</span>
+                                      <div className="inline-flex rounded-md shadow-sm bg-white dark:bg-gray-800 p-0.5 border border-gray-200 dark:border-gray-700">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateDeedType(deed.id, 'scalar')}
+                                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
+                                            deed.type === 'scalar'
+                                              ? 'bg-primary-500 text-white'
+                                              : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                          }`}
+                                        >
+                                          کیفی (اسلایدر)
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateDeedType(deed.id, 'binary')}
+                                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
+                                            deed.type === 'binary'
+                                              ? 'bg-primary-500 text-white'
+                                              : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                          }`}
+                                        >
+                                          باینری (بله-خیر)
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Read-only Types info */}
+                                  {deed.isMandatory && (
+                                    <span className="text-[9px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-1.5 py-0.5 rounded">
+                                      نماز اول وقت
+                                    </span>
+                                  )}
+                                  {deed.type === 'golden' && (
+                                    <span className="text-[9px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded">
+                                      طلایی (بله-خیر)
+                                    </span>
+                                  )}
+
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Columns Right: Library & Custom Addition (Makhzane Jame' + Ta'rif_e Custom) */}
+              <div className="lg:col-span-7 space-y-6">
+
+                {/* 1. Predefined Library Catalog with Tabs */}
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-4">
+                  <h4 className="font-bold text-gray-800 dark:text-gray-200 text-xs flex items-center gap-2 border-b pb-2 border-gray-100 dark:border-gray-700">
+                    <Layers className="w-4 h-4 text-primary-500" />
+                    <span>مخزن اعمال جامع (کتابخانه المنتور)</span>
+                  </h4>
+
+                  {/* Tabs Navigator */}
+                  <div className="flex gap-1 overflow-x-auto pb-1 border-b border-gray-50 dark:border-gray-800 custom-scrollbar">
+                    {Object.entries(CATEGORY_LABELS).map(([key, info]) => {
+                      if (key === 'obligatory') return null; // Prayers are always default, no need to toggle
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setBuilderTab(key)}
+                          className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 border ${
+                            builderTab === key
+                              ? 'bg-primary-50 border-primary-200 text-primary-700 dark:bg-primary-950/40 dark:border-primary-800 dark:text-primary-300'
+                              : 'border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-900/50'
+                          }`}
+                        >
+                          {info.icon}
+                          <span>{info.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Catalog Deeds under active Tab */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pl-1">
+                    {masterTemplates
+                      .filter(d => d.category === builderTab && !d.isMandatory)
+                      .map(deed => {
+                        const isActive = activeDeeds.some(ad => ad.id === deed.id);
+                        return (
+                          <button
+                            key={deed.id}
+                            type="button"
+                            onClick={() => handleToggleDeedActive(deed)}
+                            className={`p-3 rounded-xl border text-right transition-all flex items-center justify-between text-xs font-bold group select-none ${
+                              isActive
+                                ? 'bg-emerald-50/50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-900/50 dark:text-emerald-400'
+                                : 'bg-gray-50 hover:bg-gray-100 dark:bg-gray-900/40 dark:hover:bg-gray-900/70 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}></span>
+                              <span className="truncate">{deed.title}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {deed.isCustom && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteCustomDeedInBuilder(deed.id);
+                                  }}
+                                  className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-full transition mr-1.5 opacity-0 group-hover:opacity-100"
+                                  title="حذف کامل عمل"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                                isActive
+                                  ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
+                                  : 'bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                              }`}>
+                                {isActive ? 'فعال' : 'غیرفعال'}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    {masterTemplates.filter(d => d.category === builderTab && !d.isMandatory).length === 0 && (
+                      <div className="col-span-2 text-center text-gray-400 dark:text-gray-600 py-6 text-xs">
+                        عملی در این دسته‌بندی یافت نشد. می‌توانید با فرم زیر عمل شخصی اضافه کنید!
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Custom Deed Creator Form */}
+                <div className="bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-950/10 dark:to-purple-950/10 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/30 shadow-sm space-y-4">
+                  <h4 className="font-bold text-gray-800 dark:text-gray-200 text-xs flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-indigo-500" />
+                    <span>➕ تعریف عمل جدید شخصی</span>
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                    {/* Title */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400">عنوان عمل:</label>
+                      <input
+                        type="text"
+                        value={newCustomTitle}
+                        onChange={(e) => setNewCustomTitle(e.target.value)}
+                        placeholder="مثلا: حفظ یک آیه از قرآن"
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-1 focus:ring-primary-500 outline-none"
+                      />
+                    </div>
+
+                    {/* Category */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400">دسته‌بندی (شاخه):</label>
+                      <select
+                        value={newCustomCategory}
+                        onChange={(e) => {
+                          setNewCustomCategory(e.target.value);
+                          // Golden Category should enforce golden type
+                          if (e.target.value === 'golden') {
+                            setNewCustomType('golden');
+                          } else if (newCustomType === 'golden') {
+                            setNewCustomType('scalar');
+                          }
+                        }}
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500"
+                      >
+                        {Object.entries(CATEGORY_LABELS).map(([key, info]) => {
+                          if (key === 'obligatory') return null; // Obligatory cannot be selected for custom deeds
+                          return (
+                            <option key={key} value={key}>{info.label}</option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    {/* Type Choice */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400">نوع ارزیابی:</label>
+                      <select
+                        value={newCustomType}
+                        disabled={newCustomCategory === 'golden'}
+                        onChange={(e) => setNewCustomType(e.target.value as DeedType)}
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500 disabled:opacity-50"
+                      >
+                        <option value="scalar">کیفی (اسلایدر ۰ تا ۱۰۰)</option>
+                        <option value="binary">باینری (بله یا خیر)</option>
+                        <option value="golden">عمل طلایی (پاداش ویژه)</option>
+                      </select>
+                    </div>
+
+                    {/* Weight selection */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400">ضریب اهمیت (وزن):</label>
+                      <select
+                        value={newCustomWeight}
+                        onChange={(e) => setNewCustomWeight(Number(e.target.value))}
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500"
+                      >
+                        {[1, 2, 3, 4, 5].map(w => (
+                          <option key={w} value={w}>{toPersianDigits(w)}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddCustomDeedInBuilder}
+                    disabled={!newCustomTitle.trim()}
+                    className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm disabled:opacity-50 transition"
+                  >
+                    ثبت و افزودن فوری به چک‌لیست
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Back Button sticky action */}
+            <div className="flex justify-center pt-4 border-t border-gray-200/50 dark:border-gray-800/50">
+              <button
+                type="button"
+                onClick={() => setIsBuilderMode(false)}
+                className="px-8 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm rounded-full shadow-lg hover:shadow-primary-500/20 transform active:scale-95 transition"
+              >
+                ثبت نهایی تغییرات و بستن المنتور
+              </button>
+            </div>
+
+          </div>
+        ) : (
+          /* STANDARD DIRECT VIEW MODE (Redesigned Active Notebook Checklist) */
+          <div className="space-y-6">
+            {activeDeeds.length === 0 ? (
+              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-8">
+                <Info className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+                <h3 className="font-bold text-gray-700 dark:text-gray-200 text-sm mb-1">چک‌لیست شما خالی است</h3>
+                <p className="text-xs text-gray-400 dark:text-gray-500 max-w-xs mx-auto mb-4">
+                  هیچ عملی برای نمایش یافت نشد. دکمه شخصی‌سازی بالا را کلیک کنید تا اعمال مورد علاقه خود را بچینید!
+                </p>
+              </div>
+            ) : (
+              /* Grouped Sections by active deeds categories */
+              Object.entries(CATEGORY_LABELS).map(([catKey, catInfo]) => {
+                const deeds = activeDeedsByCategory[catKey] || [];
+                if (deeds.length === 0) return null;
+
+                return (
+                  <div key={catKey} className="space-y-3 animate-fade-in">
+
+                    {/* Section Header */}
+                    <div className="flex items-center justify-between px-2">
+                        <h3 className="text-gray-500 dark:text-gray-400 font-bold text-xs flex items-center gap-1.5 select-none">
+                            {catInfo.icon}
+                            <span>{catInfo.label}</span>
+                        </h3>
+                        <span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
+                          {toPersianDigits(deeds.length)} مورد
+                        </span>
+                    </div>
+
+                    {/* Section Grid items */}
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
+                      {deeds.map(deed => (
+                        <DeedInput
+                          key={deed.id}
+                          deed={deed}
+                          value={scores[deed.id] || 0}
+                          onChange={(val) => handleScoreChange(deed.id, val)}
+                          customTitle={custom_titles[deed.id]}
+                          onCustomTitleChange={(title) => handleTitleChange(deed.id, title)}
+                          disabled={isReadOnly}
+                        />
+                      ))}
+                    </div>
+
+                  </div>
+                );
+              })
+            )}
+
+            {/* Sins Section (Always Default and Mandatory) */}
+            <div className="mt-6">
+                <SinInput
+                    selectedSins={sins}
+                    onChange={handleSinsChange}
+                    disabled={isReadOnly}
+                />
+            </div>
+          </div>
+        )}
 
       </div>
 
-      {/* Report Section */}
+      {/* Report Section (Always Default and Mandatory) */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm transition-all duration-300 mt-6">
         <div className="flex justify-between items-center mb-2">
-            <label className="block text-gray-700 dark:text-gray-200 font-medium flex items-center gap-2">
+            <label className="block text-gray-700 dark:text-gray-200 font-medium flex items-center gap-2 text-sm select-none">
                 گزارش به امام زمان (عج)
                 <span className="text-xs text-red-500 font-normal bg-red-50 dark:bg-red-900/30 px-2 py-0.5 rounded-md">اجباری</span>
             </label>
@@ -551,7 +965,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
       </div>
 
       {/* Floating Action Button for Save */}
-      {!isReadOnly && (
+      {!isReadOnly && !isBuilderMode && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-3xl pb-4 flex justify-center z-[90] pointer-events-none">
             <button
                 onClick={handleSave}

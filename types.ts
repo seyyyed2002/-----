@@ -6,6 +6,9 @@ export interface DeedDefinition {
   title: string;
   type: DeedType;
   isCustom?: boolean; // To identify user-added deeds
+  weight?: number; // Custom weight/multiplier, e.g., 1, 2, 3, etc.
+  category?: string; // Grouping category (e.g., 'obligatory', 'supererogatory_prayers', 'duas', 'quran', 'recommended', 'morals', 'golden')
+  isMandatory?: boolean; // Default non-deletable items
 }
 
 export interface SinDefinition {
@@ -34,6 +37,7 @@ export interface DailyRecord {
 
 export interface AppSettings {
   customDeeds: DeedDefinition[];
+  activeDeeds?: DeedDefinition[]; // Saved list of deeds active in user's program
 }
 
 export interface WorkoutSettings {

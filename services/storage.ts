@@ -1,6 +1,6 @@
 
 import { DailyRecord, AppSettings, DeedDefinition, QadaCounts, WorkoutSettings, WorkoutDefinition, UserLevel, Challenge } from '../types';
-import { APP_STORAGE_KEY, APP_SETTINGS_KEY, APP_QADA_KEY, APP_WORKOUT_PR_KEY, APP_WORKOUT_SETTINGS_KEY, APP_CHALLENGES_KEY } from '../constants';
+import { DEEDS, APP_STORAGE_KEY, APP_SETTINGS_KEY, APP_QADA_KEY, APP_WORKOUT_PR_KEY, APP_WORKOUT_SETTINGS_KEY, APP_CHALLENGES_KEY } from '../constants';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const APP_LEVEL_KEY = 'muhasabah_user_level';
@@ -192,24 +192,48 @@ export const loadSettings = (): AppSettings => {
     try {
         const data = getFromMemory(APP_SETTINGS_KEY);
         if (data === null) {
-            return { customDeeds: [] };
+            return { customDeeds: [], activeDeeds: DEEDS };
         }
-        if (!Array.isArray(data.customDeeds)) {
-            return { customDeeds: [] };
-        }
-        return data;
+        const customDeeds = Array.isArray(data.customDeeds) ? data.customDeeds : [];
+        const activeDeeds = Array.isArray(data.activeDeeds) ? data.activeDeeds : [...DEEDS, ...customDeeds];
+        return {
+            customDeeds,
+            activeDeeds
+        };
     } catch (err) {
         console.error("Could not load settings", err);
-        return { customDeeds: [] };
+        return { customDeeds: [], activeDeeds: DEEDS };
+    }
+};
+
+export const saveActiveDeeds = (deeds: DeedDefinition[]): DeedDefinition[] => {
+    try {
+        const settings = loadSettings();
+        const newSettings = {
+            ...settings,
+            activeDeeds: deeds
+        };
+        saveToMemory(APP_SETTINGS_KEY, newSettings);
+
+        // Background Sync
+        upsertToSupabase(APP_SETTINGS_KEY, newSettings);
+
+        return deeds;
+    } catch (err) {
+        console.error("Could not save active deeds", err);
+        return deeds;
     }
 };
 
 export const saveCustomDeed = (deed: DeedDefinition) => {
     try {
         const settings = loadSettings();
+        const customDeeds = [...(settings.customDeeds || []), deed];
+        const activeDeeds = [...(settings.activeDeeds || []), deed];
         const newSettings = {
             ...settings,
-            customDeeds: [...(settings.customDeeds || []), deed]
+            customDeeds,
+            activeDeeds
         };
         saveToMemory(APP_SETTINGS_KEY, newSettings);
 
@@ -226,10 +250,12 @@ export const saveCustomDeed = (deed: DeedDefinition) => {
 export const removeCustomDeed = (deedId: string) => {
     try {
         const settings = loadSettings();
-        const currentList = settings.customDeeds || [];
+        const currentCustom = settings.customDeeds || [];
+        const currentActive = settings.activeDeeds || [];
         const newSettings = {
             ...settings,
-            customDeeds: currentList.filter(d => d.id !== deedId)
+            customDeeds: currentCustom.filter(d => d.id !== deedId),
+            activeDeeds: currentActive.filter(d => d.id !== deedId)
         };
         saveToMemory(APP_SETTINGS_KEY, newSettings);
 

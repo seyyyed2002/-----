@@ -103,10 +103,15 @@ export const DeedInput: React.FC<DeedInputProps> = ({
                 </div>
                 
                 <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <span className={`font-medium truncate ${isDone ? 'text-yellow-800 dark:text-yellow-100' : 'text-gray-700 dark:text-gray-200'}`}>
                             {customTitle || deed.title}
                         </span>
+                        {deed.weight && (
+                            <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100/50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded">
+                                ضریب: {toPersianDigits(deed.weight)}
+                            </span>
+                        )}
                         {deed.isCustom && !disabled && onDelete && (
                             <button 
                                 onClick={(e) => { e.stopPropagation(); onDelete(); }}
@@ -142,8 +147,13 @@ export const DeedInput: React.FC<DeedInputProps> = ({
     const isDone = value === 100;
     return (
       <div className={`bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between transition-colors ${disabled ? 'opacity-80' : 'hover:border-primary-200 dark:hover:border-primary-800'}`}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
             <span className="text-gray-700 dark:text-gray-200 font-medium">{deed.title}</span>
+            {deed.weight && (
+                <span className="text-[9px] font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/20 px-1.5 py-0.5 rounded">
+                    ضریب: {toPersianDigits(deed.weight)}
+                </span>
+            )}
             {deed.isCustom && !disabled && onDelete && (
                 <button 
                     onClick={(e) => { e.stopPropagation(); onDelete(); }}
@@ -181,10 +191,15 @@ export const DeedInput: React.FC<DeedInputProps> = ({
       } ${disabled ? 'opacity-80' : ''}`}>
         
         <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
                 <span className={`font-medium ${isQada ? 'text-red-800 dark:text-red-200' : 'text-gray-700 dark:text-gray-200'}`}>
                 {deed.title}
                 </span>
+                {deed.weight && (
+                    <span className="text-[9px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 px-1.5 py-0.5 rounded">
+                        ضریب: {toPersianDigits(deed.weight)}
+                    </span>
+                )}
                 {deed.isCustom && !disabled && onDelete && (
                     <button 
                         onClick={(e) => { e.stopPropagation(); onDelete(); }}
@@ -252,8 +267,13 @@ export const DeedInput: React.FC<DeedInputProps> = ({
   return (
     <div className={`bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col gap-3 transition-colors ${disabled ? 'opacity-80' : 'hover:border-primary-200 dark:hover:border-primary-800'}`}>
       <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
             <span className="text-gray-700 dark:text-gray-200 font-medium">{deed.title}</span>
+            {deed.weight && (
+                <span className="text-[9px] font-bold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/20 px-1.5 py-0.5 rounded">
+                    ضریب: {toPersianDigits(deed.weight)}
+                </span>
+            )}
             {deed.isCustom && !disabled && onDelete && (
                 <button 
                     onClick={(e) => { e.stopPropagation(); onDelete(); }}

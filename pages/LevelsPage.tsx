@@ -1,6 +1,6 @@
 
 import React, { useMemo, useEffect, useState, useRef } from 'react';
-import { loadState, loadUserLevel } from '../services/storage';
+import { loadState, loadUserLevel, loadSettings } from '../services/storage';
 import { toPersianDigits, DEEDS } from '../constants';
 import { Check, X, Info, MapPin, Lock, Star, Crown, Tent } from 'lucide-react';
 
@@ -36,6 +36,9 @@ export const LevelsPage: React.FC = () => {
     // Get current week stats
     const weeklyProgress = useMemo(() => {
         const records = loadState();
+        const settings = loadSettings();
+        const activeDeeds = settings.activeDeeds || DEEDS;
+
         const today = new Date();
         const currentDay = today.getDay(); 
         const jsDayToIrDay = (jsDay: number) => (jsDay + 1) % 7;
@@ -58,11 +61,18 @@ export const LevelsPage: React.FC = () => {
             if (record) {
                 const cond1 = record.total_average >= 90;
                 const cond2 = !Object.values(record.scores).some(s => s === -100);
+
+                // If gaze control or truthfulness is active, check them. Otherwise default to true.
+                const isGazeActive = activeDeeds.some(d => d.id === 'gaze_control');
+                const isTruthActive = activeDeeds.some(d => d.id === 'truthfulness');
                 const gaze = record.scores['gaze_control'] || 0;
                 const truth = record.scores['truthfulness'] || 0;
-                const cond3 = gaze >= 90 && truth >= 90;
-                const binaryDeeds = DEEDS.filter(d => d.type === 'binary');
-                const cond4 = binaryDeeds.every(d => (record.scores[d.id] || 0) === 100);
+
+                const cond3 = (!isGazeActive || gaze >= 90) && (!isTruthActive || truth >= 90);
+
+                // Check active binary deeds from checklist
+                const activeBinaryDeeds = activeDeeds.filter(d => d.type === 'binary');
+                const cond4 = activeBinaryDeeds.every(d => (record.scores[d.id] || 0) === 100);
 
                 if (cond1 && cond2 && cond3 && cond4) {
                     status = 'success';

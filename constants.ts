@@ -4,31 +4,58 @@
 import { DeedDefinition, SinDefinition, QadaCounts, WorkoutDefinition } from './types';
 
 export const DEEDS: DeedDefinition[] = [
-  // Binary Deeds (0 or 100)
-  { id: 'ziyarat_ashura', title: 'زیارت عاشورا', type: 'binary' },
-  { id: 'ziyarat_ale_yasin', title: 'زیارت آل یاسین', type: 'binary' },
-  { id: 'surah_fath', title: 'سوره فتح', type: 'binary' },
-  { id: 'surah_dhariyat', title: 'سوره ذاریات', type: 'binary' },
-  { id: 'surah_waqiah', title: 'سوره واقعه', type: 'binary' },
-  { id: 'surah_yasin', title: 'سوره یس', type: 'binary' },
-  
-  // Scalar Deeds (0 to 100)
-  { id: 'gaze_control', title: 'کنترل نگاه (نگاه نکردن به نامحرم)', type: 'scalar' },
-  { id: 'truthfulness', title: 'صداقت (نگفتن دروغ)', type: 'scalar' },
-  { id: 'sleep_time', title: 'خوابیدن سر زمان مناسب', type: 'scalar' },
+  // Obligatory Prayers (Default & Non-deletable)
+  { id: 'prayer_fajr', title: 'نماز اول وقت صبح', type: 'prayer', category: 'obligatory', isMandatory: true, weight: 2 },
+  { id: 'prayer_dhuhr', title: 'نماز اول وقت ظهر', type: 'prayer', category: 'obligatory', isMandatory: true, weight: 2 },
+  { id: 'prayer_maghrib', title: 'نماز اول وقت شب', type: 'prayer', category: 'obligatory', isMandatory: true, weight: 2 },
 
-  // Prayer Deeds (Binary + Qada check)
-  { id: 'prayer_fajr', title: 'نماز اول وقت صبح', type: 'prayer' },
-  { id: 'prayer_dhuhr', title: 'نماز اول وقت ظهر', type: 'prayer' },
-  { id: 'prayer_maghrib', title: 'نماز اول وقت شب', type: 'prayer' },
+  // Supererogatory Prayers (نمازهای مستحب)
+  { id: 'golden_night_prayer', title: 'نماز شب', type: 'golden', category: 'supererogatory_prayers', weight: 4 },
+  { id: 'prayer_jafar_tayyar', title: 'نماز جعفر طیار', type: 'binary', category: 'supererogatory_prayers', weight: 3 },
+  { id: 'prayer_ghufaylah', title: 'نماز غفیله', type: 'binary', category: 'supererogatory_prayers', weight: 1 },
+  { id: 'prayer_hadiah_walidayn', title: 'نماز هدیه والدین', type: 'binary', category: 'supererogatory_prayers', weight: 2 },
 
-  // Golden Deeds (Bonus Score)
-  { id: 'golden_night_prayer', title: 'نماز شب', type: 'golden' }, // +20, 2 Stars
-  { id: 'golden_father_hand', title: 'بوسیدن دست پدر', type: 'golden' }, // +20, 2 Stars
-  { id: 'golden_mother_hand', title: 'بوسیدن دست مادر', type: 'golden' }, // +20, 2 Stars
-  { id: 'golden_salawat', title: '۱۰۰ تا صلوات', type: 'golden' }, // +10
-  { id: 'golden_parents', title: 'خوشحال کردن پدر و مادر', type: 'golden' }, // +10
-  { id: 'golden_others', title: 'خوشحال کردن دیگران', type: 'golden' }, // +10
+  // Duas (ادعیه)
+  { id: 'ziyarat_ashura', title: 'زیارت عاشورا', type: 'binary', category: 'duas', weight: 2 },
+  { id: 'ziyarat_ale_yasin', title: 'زیارت آل یاسین', type: 'binary', category: 'duas', weight: 1 },
+  { id: 'dua_tavassol', title: 'دعای توسل', type: 'binary', category: 'duas', weight: 1 },
+  { id: 'dua_kumayl', title: 'دعای کمیل', type: 'binary', category: 'duas', weight: 2 },
+  { id: 'dua_ahd', title: 'دعای عهد', type: 'binary', category: 'duas', weight: 2 },
+  { id: 'dua_ndbah', title: 'دعای ندبه', type: 'binary', category: 'duas', weight: 1 },
+  { id: 'dua_simat', title: 'دعای سمات', type: 'binary', category: 'duas', weight: 1 },
+  { id: 'dua_yastasheer', title: 'دعای یستشیر', type: 'binary', category: 'duas', weight: 1 },
+
+  // Quran (سوره‌های قرآن)
+  { id: 'surah_fath', title: 'سوره فتح', type: 'binary', category: 'quran', weight: 1 },
+  { id: 'surah_dhariyat', title: 'سوره ذاریات', type: 'binary', category: 'quran', weight: 1 },
+  { id: 'surah_waqiah', title: 'سوره واقعه', type: 'binary', category: 'quran', weight: 1 },
+  { id: 'surah_yasin', title: 'سوره یس', type: 'binary', category: 'quran', weight: 1 },
+  { id: 'surah_mulk', title: 'سوره ملک', type: 'binary', category: 'quran', weight: 1 },
+  { id: 'surah_rahman', title: 'سوره الرحمن', type: 'binary', category: 'quran', weight: 1 },
+  { id: 'surah_naba', title: 'سوره نبأ', type: 'binary', category: 'quran', weight: 1 },
+  { id: 'surah_kahf', title: 'سوره کهف', type: 'binary', category: 'quran', weight: 1 },
+
+  // Recommended Actions (کارهای مستحب)
+  { id: 'golden_salawat', title: '۱۰۰ تا صلوات', type: 'golden', category: 'recommended', weight: 1 },
+  { id: 'sadaqah', title: 'صدقه دادن', type: 'binary', category: 'recommended', weight: 1 },
+  { id: 'wudu', title: 'دائم الوضو بودن', type: 'binary', category: 'recommended', weight: 1 },
+  { id: 'istighfar', title: 'استغفار روزانه', type: 'binary', category: 'recommended', weight: 1 },
+  { id: 'ziyarat_shohada', title: 'زیارت شهدا', type: 'binary', category: 'recommended', weight: 1 },
+
+  // Special Contemplations (مراقبه‌های خاص / اخلاقیات)
+  { id: 'gaze_control', title: 'کنترل نگاه (نگاه نکردن به نامحرم)', type: 'scalar', category: 'morals', weight: 3 },
+  { id: 'truthfulness', title: 'صداقت (نگفتن دروغ)', type: 'scalar', category: 'morals', weight: 3 },
+  { id: 'sleep_time', title: 'خوابیدن سر زمان مناسب', type: 'scalar', category: 'morals', weight: 1 },
+  { id: 'silence', title: 'حفظ زبان (سکوت اختیاری)', type: 'scalar', category: 'morals', weight: 2 },
+  { id: 'humility', title: 'تواضع و فروتنی', type: 'scalar', category: 'morals', weight: 1 },
+  { id: 'patience', title: 'صبر در ناملایمات', type: 'scalar', category: 'morals', weight: 2 },
+
+  // Golden Deeds (اعمال طلایی - پاداش ویژه)
+  { id: 'golden_father_hand', title: 'بوسیدن دست پدر', type: 'golden', category: 'golden', weight: 4 }, // +20
+  { id: 'golden_mother_hand', title: 'بوسیدن دست مادر', type: 'golden', category: 'golden', weight: 4 }, // +20
+  { id: 'golden_parents', title: 'خوشحال کردن پدر و مادر', type: 'golden', category: 'golden', weight: 2 }, // +10
+  { id: 'golden_others', title: 'خوشحال کردن دیگران', type: 'golden', category: 'golden', weight: 2 }, // +10
+  { id: 'helping_poor', title: 'کمک به نیازمند', type: 'golden', category: 'golden', weight: 2 }, // +10
 ];
 
 export const WORKOUTS: WorkoutDefinition[] = [

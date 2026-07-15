@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محاسبه اعمال پیشرفته | سبک المنتور</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;300;400;500;700;900&display=swap');
+        
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #10b981;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #10b981;
+        }
+
+        /* Modal Animation */
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+        body.modal-active {
+            overflow-x: hidden;
+            overflow-y: visible !important;
+        }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm z-10 flex-none">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-3">
+                    <div class="bg-emerald-600 text-white p-2 rounded-lg">
+                        <i class="fas fa-praying-hands text-xl"></i>
+                    </div>
+                    <h1 class="text-xl font-bold text-gray-800">دفترچه هوشمند مراقبه</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-left">
+                        <p class="text-xs text-gray-500">امتیاز کل امروز</p>
+                        <p class="text-lg font-bold text-emerald-600" id="totalScoreDisplay">0</p>
+                    </div>
+                    <button onclick="openModal('settingsModal')" class="p-2 text-gray-400 hover:text-emerald-600 transition">
+                        <i class="fas fa-cog text-xl"></i>
+                    </button>
+                    <button onclick="resetDay()" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-red-100 transition">
+                        <i class="fas fa-redo-alt ml-1"></i> شروع روز جدید
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- Sidebar (Library & Categories) -->
+        <aside class="w-80 bg-white border-l border-gray-200 flex flex-col flex-none overflow-hidden">
+            <div class="p-4 border-b border-gray-100">
+                <h2 class="font-bold text-gray-700 mb-1">کتابخانه اعمال</h2>
+                <p class="text-xs text-gray-400">دسته‌بندی مورد نظر را انتخاب کنید</p>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 space-y-6" id="categoryList">
+                <!-- Categories will be injected here -->
+            </div>
+
+            <div class="p-4 bg-gray-50 border-t border-gray-200">
+                <button onclick="openModal('customActionModal')" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-md transition flex items-center justify-center gap-2">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>تعریف عمل جدید</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content (The Builder/Canvas) -->
+        <main class="flex-1 overflow-y-auto bg-slate-50 p-6 relative">
+            
+            <!-- Fixed Core Sections (Non-removable) -->
+            <div class="max-w-4xl mx-auto space-y-6 mb-10">
+                
+                <!-- Imam Zaman Report (Default & Fixed) -->
+                <div class="bg-gradient-to-r from-emerald-800 to-teal-700 rounded-2xl p-6 text-white shadow-lg card-shadow relative overflow-hidden group">
+                    <div class="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/arabesque.png')] opacity-10"></div>
+                    <div class="relative z-10 flex justify-between items-start">
+                        <div>
+                            <h3 class="text-xl font-bold mb-1 flex items-center gap-2">
+                                <i class="fas fa-heart text-red-300"></i>
+                                گزارش به امام زمان (عج)
+                            </h3>
+                            <p class="text-emerald-100 text-sm opacity-90">امروز چه هدیه‌ای برای مولایتان دارید؟</p>
+                        </div>
+                        <div class="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium">
+                            اجباری
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <textarea id="imamZamanNote" rows="3" class="w-full bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-emerald-200 focus:outline-none focus:bg-white/20 transition resize-none" placeholder="بنویسید..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Obligatory Prayers (Default & Fixed) -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm card-shadow border-r-4 border-emerald-500">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-mosque text-emerald-600"></i>
+                            نمازهای یومیه (واجب)
+                        </h3>
+                        <span class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded font-bold">غیر قابل حذف</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3" id="prayerContainer">
+                        <!-- Prayers injected via JS -->
+                    </div>
+                </div>
+
+                <!-- Sins / Negative Actions (Default & Fixed) -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm card-shadow border-r-4 border-red-500">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-exclamation-triangle text-red-600"></i>
+                            پرهیز از گناهان (لیست سیاه)
+                        </h3>
+                        <span class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded font-bold">ثبت وقوع</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="sinsContainer">
+                        <!-- Sins injected via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic User Sections (The "Elementor" Part) -->
+            <div class="max-w-4xl mx-auto">
+                <div class="flex justify-between items-end mb-4">
+                    <h2 class="text-xl font-bold text-gray-700">برنامه شخصی‌سازی شده من</h2>
+                    <button onclick="clearCustomSections()" class="text-xs text-red-500 hover:text-red-700 underline">حذف تمام بخش‌های شخصی</button>
+                </div>
+                
+                <div id="userCanvas" class="space-y-6">
+                    <!-- User added categories and actions appear here -->
+                    <div id="emptyState" class="text-center py-12 bg-white rounded-2xl border-2 border-dashed border-gray-300">
+                        <i class="fas fa-layer-group text-4xl text-gray-300 mb-3"></i>
+                        <p class="text-gray-500">هنوز بخشی اضافه نکرده‌اید.</p>
+                        <p class="text-sm text-gray-400">از منوی سمت راست، دسته‌بندی‌ها را انتخاب کنید یا عمل جدید بسازید.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="h-20"></div> <!-- Spacer -->
+        </main>
+    </div>
+
+    <!-- Modal: Add Custom Action -->
+    <div id="customActionModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
+        
+        <div class="modal-container bg-white w-11/12 md:max-w-lg mx-auto rounded-2xl shadow-2xl z-50 overflow-y-auto max-h-[90vh]">
+            
+            <div class="modal-content py-4 text-left px-6">
+                <!-- Title -->
+                <div class="flex justify-between items-center pb-3 border-b">
+                    <p class="text-xl font-bold text-gray-800">تعریف عمل جدید</p>
+                    <div class="cursor-pointer z-50" onclick="closeModal('customActionModal')">
+                        <i class="fas fa-times text-gray-500 hover:text-red-500"></i>
+                    </div>
+                </div>
+
+                <!-- Body -->
+                <div class="my-5 space-y-4">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">عنوان عمل</label>
+                        <input type="text" id="newActionTitle" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="مثلا: صلوات خاصه، مطالعه کتاب...">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">دسته‌بندی</label>
+                            <select id="newActionCategory" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                <option value="custom">دسته‌بندی جدید...</option>
+                                <option value="quran">قرآن کریم</option>
+                                <option value="duas">ادعیه و زیارات</option>
+                                <option value="mustahabat">مستحبات روزانه</option>
+                                <option value="moraghebe">مراقبه‌های اخلاقی</option>
+                                <option value="social">اجتماعی و حقوق الناس</option>
+                                <option value="knowledge">علم و آگاهی</option>
+                            </select>
+                        </div>
+                        <div id="newCategoryNameContainer" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">نام دسته جدید</label>
+                            <input type="text" id="newCategoryNameInput" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="نام دسته">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">نوع محاسبه</label>
+                            <select id="newActionType" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                <option value="binary">دوحالته (انجام شد/نشده)</option>
+                                <option value="counter">تعدادی (شمارنده)</option>
+                                <option value="quality">کیفی (ضعیف/متوسط/عالی)</option>
+                                <option value="time">زمان‌دار (دقیقه)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">وزن/امتیاز پایه</label>
+                            <input type="number" id="newActionWeight" value="10" min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">آیکون (اختیاری)</label>
+                        <div class="flex gap-2 overflow-x-auto pb-2" id="iconPicker">
+                            <!-- Icons injected via JS -->
+                        </div>
+                        <input type="hidden" id="selectedIcon" value="fa-star">
+                    </div>
+
+                    <div class="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
+                        <i class="fas fa-info-circle ml-1"></i>
+                        با افزودن این عمل، اگر دسته‌بندی آن قبلاً وجود نداشته باشد، به صورت خودکار یک بخش جدید در دفترچه شما ساخته می‌شود.
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="flex justify-end pt-2 gap-2">
+                    <button onclick="closeModal('customActionModal')" class="px-4 py-2 bg-transparent p-3 rounded-lg text-emerald-600 hover:bg-gray-100 hover:text-emerald-700 mr-2">انصراف</button>
+                    <button onclick="addCustomAction()" class="px-4 py-2 bg-emerald-600 rounded-lg text-white hover:bg-emerald-700 shadow-md">افزودن به دفترچه</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Settings -->
+    <div id="settingsModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded-2xl shadow-2xl z-50 overflow-y-auto">
+            <div class="modal-content py-4 text-left px-6">
+                <div class="flex justify-between items-center pb-3 border-b">
+                    <p class="text-xl font-bold text-gray-800">تنظیمات</p>
+                    <div class="cursor-pointer z-50" onclick="closeModal('settingsModal')">
+                        <i class="fas fa-times text-gray-500 hover:text-red-500"></i>
+                    </div>
+                </div>
+                <div class="my-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-700">صدای موفقیت</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-700">نمایش تاییدیه پس از ثبت</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                    </div>
+                    <button onclick="exportData()" class="w-full bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-900 transition">خروجی گرفتن از اطلاعات (JSON)</button>
+                    <button onclick="clearAllData()" class="w-full bg-red-100 text-red-600 py-2 rounded-lg hover:bg-red-200 transition">پاکسازی کامل داده‌ها</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Data Structure & State ---
+        
+        const defaultCategories = [
+            { id: 'quran', name: 'سوره‌های قرآن', icon: 'fa-book-quran', color: 'text-emerald-600' },
+            { id: 'duas', name: 'ادعیه و زیارات', icon: 'fa-hands-praying', color: 'text-blue-600' },
+            { id: 'mustahabat', name: 'کارهای مستحب', icon: 'fa-sparkles', color: 'text-amber-600' },
+            { id: 'moraghebe', name: 'مراقبه‌های خاص', icon: 'fa-brain', color: 'text-purple-600' },
+            { id: 'social', name: 'حقوق الناس', icon: 'fa-users', color: 'text-indigo-600' },
+            { id: 'knowledge', name: 'مطالعه و علم', icon: 'fa-graduation-cap', color: 'text-teal-600' }
+        ];
+
+        const defaultPrayers = [
+            { id: 'fajr', name: 'صبح', weight: 20 },
+            { id: 'dhuhr', name: 'ظهر', weight: 20 },
+            { id: 'asr', name: 'عصر', weight: 20 },
+            { id: 'maghrib', name: 'مغرب', weight: 20 },
+            { id: 'isha', name: 'عشاء', weight: 20 }
+        ];
+
+        const defaultSins = [
+            { id: 'lie', name: 'دروغ', weight: -10 },
+            { id: 'backbite', name: 'غیبت', weight: -15 },
+            { id: 'anger', name: 'عصبانیت', weight: -5 },
+            { id: 'wasteful', name: 'اسراف', weight: -5 }
+        ];
+
+        const availableIcons = [
+            'fa-star', 'fa-heart', 'fa-book', 'fa-moon', 'fa-sun', 'fa-cloud', 
+            'fa-gem', 'fa-leaf', 'fa-fire', 'fa-water', 'fa-eye', 'fa-hand-holding-heart'
+        ];
+
+        // State
+        let appState = {
+            customActions: [], // User defined actions
+            userCategories: [], // Categories created by user
+            dailyLogs: {} // Format: { actionId: value, date: 'YYYY-MM-DD' }
+        };
+
+        // --- Initialization ---
+
+        function init() {
+            loadData();
+            renderSidebar();
+            renderFixedSections();
+            renderUserCanvas();
+            renderIconPicker();
+            updateTotalScore();
+            
+            // Load saved note for today
+            const today = new Date().toISOString().split('T')[0];
+            const savedNote = localStorage.getItem(`imamZamanNote_${today}`);
+            if(savedNote) document.getElementById('imamZamanNote').value = savedNote;
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('spiritualBuilderData');
+            if (saved) {
+                appState = JSON.parse(saved);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('spiritualBuilderData', JSON.stringify(appState));
+            updateTotalScore();
+        }
+
+        // --- Rendering Functions ---
+
+        function renderSidebar() {
+            const container = document.getElementById('categoryList');
+            container.innerHTML = '';
+
+            defaultCategories.forEach(cat => {
+                const div = document.createElement('div');
+                div.className = 'group flex items-center justify-between p-3 rounded-lg hover:bg-emerald-50 cursor-pointer transition border border-transparent hover:border-emerald-200';
+                div.onclick = () => addCategoryToCanvas(cat.id);
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center ${cat.color} group-hover:bg-white">
+                            <i class="fas ${cat.icon}"></i>
+                        </div>
+                        <span class="font-medium text-gray-700 group-hover:text-emerald-800">${cat.name}</span>
+                    </div>
+                    <i class="fas fa-plus text-gray-300 group-hover:text-emerald-500"></i>
+                `;
+                container.appendChild(div);
+            });
+
+            // Show user created categories in sidebar too? Maybe just a separator
+            if (appState.userCategories.length > 0) {
+                const sep = document.createElement('div');
+                sep.className = 'border-t border-gray-200 my-4';
+                container.appendChild(sep);
+                
+                const title = document.createElement('p');
+                title.className = 'text-xs font-bold text-gray-400 mb-2 px-2 uppercase';
+                title.innerText = 'دسته‌های ساخته شده';
+                container.appendChild(title);
+
+                appState.userCategories.forEach(cat => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center gap-3 p-2 rounded-lg text-gray-600 text-sm';
+                    div.innerHTML = `
+                         <div class="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-gray-500">
+                            <i class="fas ${cat.icon || 'fa-folder'}"></i>
+                        </div>
+                        <span>${cat.name}</span>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+        }
+
+        function renderFixedSections() {
+            // Prayers
+            const prayerContainer = document.getElementById('prayerContainer');
+            prayerContainer.innerHTML = '';
+            defaultPrayers.forEach(prayer => {
+                const isChecked = appState.dailyLogs[`prayer_${prayer.id}`] === true;
+                prayerContainer.innerHTML += createBinaryCard(`prayer_${prayer.id}`, prayer.name, isChecked, 'fa-mosque', 'emerald');
+            });
+
+            // Sins
+            const sinsContainer = document.getElementById('sinsContainer');
+            sinsContainer.innerHTML = '';
+            defaultSins.forEach(sin => {
+                const count = appState.dailyLogs[`sin_${sin.id}`] || 0;
+                sinsContainer.innerHTML += createCounterCard(`sin_${sin.id}`, sin.name, count, 'fa-ban', 'red', true);
+            });
+        }
+
+        function renderUserCanvas() {
+            const canvas = document.getElementById('userCanvas');
+            const emptyState = document.getElementById('emptyState');
+            
+            // Clear current dynamic content (except empty state logic)
+            canvas.innerHTML = '';
+            
+            if (appState.customActions.length === 0) {
+                canvas.appendChild(emptyState);
+                emptyState.style.display = 'block';
+                return;
+            } else {
+                if(emptyState) emptyState.style.display = 'none';
+            }
+
+            // Group actions by category
+            const allCats = [...defaultCategories, ...appState.userCategories];
+            
+            allCats.forEach(cat => {
+                const catActions = appState.customActions.filter(a => a.categoryId === cat.id);
+                
+                if (catActions.length > 0) {
+                    const sectionDiv = document.createElement('div');
+                    sectionDiv.className = 'bg-white rounded-2xl p-6 shadow-sm card-shadow border-r-4 relative group';
+                    sectionDiv.style.borderColor = getColorCode(cat.color); // Helper needed or map
+                    
+                    // Header
+                    let headerHtml = `
+                        <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
+                            <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                <i class="fas ${cat.icon} ${cat.color}"></i>
+                                ${cat.name}
+                            </h3>
+                            ${!defaultCategories.find(c => c.id === cat.id) ? `
+                                <button onclick="removeCategory('${cat.id}')" class="text-gray-300 hover:text-red-500 transition" title="حذف دسته">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    `;
+
+                    catActions.forEach(action => {
+                        headerHtml += renderActionCard(action);
+                    });
+
+                    headerHtml += `</div>`;
+                    sectionDiv.innerHTML = headerHtml;
+                    canvas.appendChild(sectionDiv);
+                }
+            });
+        }
+
+        function renderActionCard(action) {
+            const currentVal = appState.dailyLogs[action.id];
+            let content = '';
+
+            if (action.type === 'binary') {
+                content = createBinaryCard(action.id, action.title, currentVal === true, action.icon, 'blue');
+            } else if (action.type === 'counter') {
+                content = createCounterCard(action.id, action.title, currentVal || 0, action.icon, 'blue');
+            } else if (action.type === 'quality') {
+                content = createQualityCard(action.id, action.title, currentVal, action.icon);
+            } else if (action.type === 'time') {
+                content = createTimeCard(action.id, action.title, currentVal || 0, action.icon);
+            }
+
+            // Add delete button for individual custom action
+            const deleteBtn = `<button onclick="removeAction('${action.id}')" class="absolute top-2 left-2 text-gray-200 hover:text-red-500 opacity-0 group-hover/card:opacity-100 transition"><i class="fas fa-times"></i></button>`;
+            
+            // Wrap content to add relative positioning for delete button if needed, 
+            // but our card creators return full HTML strings. 
+            // Let's modify the creators to accept an extra param or wrap the result.
+            // For simplicity, I'll inject the delete button into the inner HTML of the returned string.
+            // Actually, better to add a class 'group/card' to the outer div in creators.
+            
+            return `<div class="relative group/card">${content}</div>`;
+        }
+
+        // --- Card Generators (HTML Strings) ---
+
+        function createBinaryCard(id, title, isChecked, icon, colorTheme) {
+            const themeClasses = colorTheme === 'emerald' ? 'checked:bg-emerald-500 border-emerald-500' : 'checked:bg-blue-500 border-blue-500';
+            const textClass = colorTheme === 'red' ? 'text-red-600' : 'text-gray-700';
+            
+            return `
+                <div class="flex items-center justify-between p-3 rounded-xl border ${isChecked ? 'bg-gray-50 border-gray-200' : 'border-gray-100 hover:border-gray-300'} transition cursor-pointer" onclick="toggleBinary('${id}')">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center ${isChecked ? 'text-white ' + (colorTheme==='emerald'?'bg-emerald-500':'bg-blue-500') : 'text-gray-400'} transition">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <span class="font-medium ${textClass} ${isChecked ? 'line-through text-gray-400' : ''}">${title}</span>
+                    </div>
+                    <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="${id}" ${isChecked ? 'checked' : ''} class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer ${isChecked ? 'right-0 border-' + (colorTheme==='emerald'?'emerald-500':'blue-500') : 'right-5 border-gray-300'}" onclick="event.stopPropagation(); toggleBinary('${id}')"/>
+                        <label for="${id}" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer"></label>
+                    </div>
+                </div>
+            `;
+        }
+
+        function createCounterCard(id, title, count, icon, colorTheme, isNegative = false) {
+            const colorClass = isNegative ? 'text-red-600 bg-red-50' : 'text-blue-600 bg-blue-50';
+            const btnColor = isNegative ? 'hover:bg-red-100 text-red-600' : 'hover:bg-blue-100 text-blue-600';
+            
+            return `
+                <div class="p-4 rounded-xl border border-gray-100 bg-white hover:shadow-md transition">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2">
+                            <i class="fas ${icon} ${isNegative ? 'text-red-400' : 'text-blue-400'}"></i>
+                            <span class="font-bold text-gray-700 text-sm">${title}</span>
+                        </div>
+                        ${!isNegative ? `<span class="text-xs text-gray-400">وزن: ${appState.customActions.find(a=>a.id===id)?.weight || 0}</span>` : ''}
+                    </div>
+                    <div class="flex items-center justify-between mt-3">
+                        <button onclick="updateCounter('${id}', -1)" class="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center transition">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <span class="text-xl font-bold ${isNegative ? 'text-red-600' : 'text-gray-800'}">${count}</span>
+                        <button onclick="updateCounter('${id}', 1)" class="w-8 h-8 rounded-lg ${btnColor} bg-opacity-20 flex items-center justify-center transition">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function createQualityCard(id, title, currentVal, icon) {
+            const options = ['weak', 'medium', 'good'];
+            const labels = ['ضعیف', 'متوسط', 'عالی'];
+            const colors = ['text-orange-500', 'text-blue-500', 'text-emerald-500'];
+            
+            let buttons = '';
+            options.forEach((opt, idx) => {
+                const isActive = currentVal === opt ? 'ring-2 ring-offset-1 scale-105 ' + colors[idx].replace('text', 'border') : 'opacity-50 hover:opacity-100';
+                buttons += `
+                    <button onclick="setQuality('${id}', '${opt}')" class="flex-1 py-2 rounded-lg border ${isActive} ${colors[idx]} bg-white transition text-xs font-bold">
+                        ${labels[idx]}
+                    </button>
+                `;
+            });
+
+            return `
+                <div class="p-4 rounded-xl border border-gray-100 bg-white hover:shadow-md transition">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i class="fas ${icon} text-purple-400"></i>
+                        <span class="font-bold text-gray-700 text-sm">${title}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        ${buttons}
+                    </div>
+                </div>
+            `;
+        }
+
+        function createTimeCard(id, title, minutes, icon) {
+            return `
+                <div class="p-4 rounded-xl border border-gray-100 bg-white hover:shadow-md transition">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-2">
+                            <i class="fas ${icon} text-teal-400"></i>
+                            <span class="font-bold text-gray-700 text-sm">${title}</span>
+                        </div>
+                        <span class="text-xs font-mono bg-teal-50 text-teal-700 px-2 py-1 rounded">${minutes} دقیقه</span>
+                    </div>
+                    <input type="range" min="0" max="120" value="${minutes}" oninput="updateTime('${id}', this.value)" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-teal-500">
+                </div>
+            `;
+        }
+
+        // --- Logic Handlers ---
+
+        function toggleBinary(id) {
+            const current = appState.dailyLogs[id];
+            appState.dailyLogs[id] = !current;
+            saveData();
+            renderFixedSections(); // Re-render to show changes
+            renderUserCanvas();
+        }
+
+        function updateCounter(id, delta) {
+            let current = appState.dailyLogs[id] || 0;
+            current += delta;
+            if (current < 0) current = 0;
+            appState.dailyLogs[id] = current;
+            saveData();
+            renderFixedSections();
+            renderUserCanvas();
+        }
+
+        function setQuality(id, level) {
+            appState.dailyLogs[id] = level;
+            saveData();
+            renderUserCanvas();
+        }
+
+        function updateTime(id, val) {
+            appState.dailyLogs[id] = parseInt(val);
+            // Don't re-render fully on slider move to avoid lag, just update score
+            updateTotalScore(); 
+            // Update the label manually for performance
+            // (Simplified: just save data, UI updates on release or periodic)
+            saveData(); 
+        }
+        
+        // Debounce save for slider could be added, but for now direct save is okay for localstorage
+
+        function addCategoryToCanvas(catId) {
+            // Just a visual cue or logic to say "Added". 
+            // In this model, adding an ACTION automatically adds the category if not exists.
+            // So clicking a category here could open the "Add Action" modal pre-filled with that category.
+            document.getElementById('newActionCategory').value = catId;
+            document.getElementById('newCategoryNameContainer').classList.add('hidden');
+            openModal('customActionModal');
+        }
+
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.add('modal-active');
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('modal-active');
+        }
+
+        function renderIconPicker() {
+            const container = document.getElementById('iconPicker');
+            container.innerHTML = '';
+            availableIcons.forEach(icon => {
+                const div = document.createElement('div');
+                div.className = 'w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center cursor-pointer hover:bg-emerald-50 hover:border-emerald-500 transition text-gray-500';
+                div.innerHTML = `<i class="fas ${icon}"></i>`;
+                div.onclick = () => {
+                    document.querySelectorAll('#iconPicker div').forEach(d => d.classList.remove('bg-emerald-100', 'border-emerald-500', 'text-emerald-600'));
+                    div.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-600');
+                    document.getElementById('selectedIcon').value = icon;
+                };
+                container.appendChild(div);
+            });
+            // Select first by default
+            container.firstElementChild.click();
+        }
+
+        function addCustomAction() {
+            const title = document.getElementById('newActionTitle').value;
+            let catId = document.getElementById('newActionCategory').value;
+            const type = document.getElementById('newActionType').value;
+            const weight = parseInt(document.getElementById('newActionWeight').value);
+            const icon = document.getElementById('selectedIcon').value;
+
+            if (!title) return alert('لطفا عنوان عمل را وارد کنید');
+
+            // Handle New Category Creation
+            if (catId === 'custom') {
+                const newCatName = document.getElementById('newCategoryNameInput').value;
+                if (!newCatName) return alert('نام دسته‌بندی جدید را وارد کنید');
+                catId = 'cat_' + Date.now();
+                appState.userCategories.push({
+                    id: catId,
+                    name: newCatName,
+                    icon: 'fa-folder-open',
+                    color: 'text-gray-600'
+                });
+            }
+
+            const newAction = {
+                id: 'act_' + Date.now(),
+                title: title,
+                categoryId: catId,
+                type: type,
+                weight: weight,
+                icon: icon
+            };
+
+            appState.customActions.push(newAction);
+            saveData();
+            
+            // Reset and Close
+            document.getElementById('newActionTitle').value = '';
+            closeModal('customActionModal');
+            renderSidebar();
+            renderUserCanvas();
+        }
+
+        function removeAction(actionId) {
+            if(confirm('آیا مطمئن هستید؟')) {
+                appState.customActions = appState.customActions.filter(a => a.id !== actionId);
+                // Cleanup logs
+                delete appState.dailyLogs[actionId];
+                saveData();
+                renderUserCanvas();
+            }
+        }
+
+        function removeCategory(catId) {
+            if(confirm('حذف این دسته‌بندی تمام اعمال داخل آن را نیز حذف می‌کند. ادامه می‌دهید؟')) {
+                appState.userCategories = appState.userCategories.filter(c => c.id !== catId);
+                // Remove actions in this category
+                const actionsToRemove = appState.customActions.filter(a => a.categoryId === catId).map(a => a.id);
+                appState.customActions = appState.customActions.filter(a => a.categoryId !== catId);
+                // Cleanup logs
+                actionsToRemove.forEach(id => delete appState.dailyLogs[id]);
+                saveData();
+                renderSidebar();
+                renderUserCanvas();
+            }
+        }
+
+        function clearCustomSections() {
+            if(confirm('تمام بخش‌های شخصی‌سازی شده حذف خواهند شد. نماز و گناهان باقی می‌مانند.')) {
+                appState.customActions = [];
+                appState.userCategories = [];
+                // Keep logs for core, clear others? Or clear all logs? Let's clear all logs for cleanliness
+                appState.dailyLogs = {}; 
+                saveData();
+                renderUserCanvas();
+            }
+        }
+
+        function updateTotalScore() {
+            let score = 0;
+            
+            // Core Prayers
+            defaultPrayers.forEach(p => {
+                if (appState.dailyLogs[`prayer_${p.id}`]) score += p.weight;
+            });
+
+            // Sins (Negative)
+            defaultSins.forEach(s => {
+                const count = appState.dailyLogs[`sin_${s.id}`] || 0;
+                score += (count * s.weight); // weight is negative
+            });
+
+            // Custom Actions
+            appState.customActions.forEach(act => {
+                const val = appState.dailyLogs[act.id];
+                if (val === true) { // Binary
+                    score += act.weight;
+                } else if (typeof val === 'number') { // Counter or Time
+                    if (act.type === 'counter') score += (val * act.weight);
+                    if (act.type === 'time') score += Math.floor(val / 10); // Example: 10 mins = 1 point
+                } else if (typeof val === 'string') { // Quality
+                    if (val === 'weak') score += act.weight * 0.3;
+                    if (val === 'medium') score += act.weight * 0.6;
+                    if (val === 'good') score += act.weight;
+                }
+            });
+
+            document.getElementById('totalScoreDisplay').innerText = score.toLocaleString('fa-IR');
+        }
+
+        function resetDay() {
+            if(confirm('آیا مطمئن هستید؟ تمام تیک‌های امروز پاک می‌شوند.')) {
+                appState.dailyLogs = {};
+                // Keep the note? Maybe clear it too.
+                document.getElementById('imamZamanNote').value = '';
+                saveData();
+                renderFixedSections();
+                renderUserCanvas();
+                updateTotalScore();
+            }
+        }
+
+        function getColorCode(colorClass) {
+            // Simple mapping for border colors based on tailwind classes
+            if (colorClass.includes('emerald')) return '#059669';
+            if (colorClass.includes('blue')) return '#2563eb';
+            if (colorClass.includes('red')) return '#dc2626';
+            if (colorClass.includes('amber')) return '#d97706';
+            if (colorClass.includes('purple')) return '#7c3aed';
+            if (colorClass.includes('indigo')) return '#4f46e5';
+            if (colorClass.includes('teal')) return '#0d9488';
+            return '#e5e7eb';
+        }
+
+        // Save Note Listener
+        document.getElementById('imamZamanNote').addEventListener('input', (e) => {
+            const today = new Date().toISOString().split('T')[0];
+            localStorage.setItem(`imamZamanNote_${today}`, e.target.value);
+        });
+
+        // Category Input Toggle
+        document.getElementById('newActionCategory').addEventListener('change', (e) => {
+            const container = document.getElementById('newCategoryNameContainer');
+            if (e.target.value === 'custom') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        });
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>

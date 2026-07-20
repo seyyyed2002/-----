@@ -1,8 +1,10 @@
 
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Calendar, History, Moon, Sun, Dumbbell, Grid2X2, Map } from 'lucide-react';
+import { LayoutDashboard, Calendar, History, Moon, Sun, Dumbbell, Grid2X2, Map, Settings, LogIn } from 'lucide-react';
 import { loadUserLevel } from '../services/storage';
 import { toPersianDigits } from '../constants';
+import { SettingsModal } from '../pages/SettingsPage';
+import { AuthModal } from '../pages/AuthPage';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,7 +16,9 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange, isDark, toggleTheme }) => {
   const [currentAmoud, setCurrentAmoud] = useState(1);
-
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  
   // Poll level in case it changes
   useEffect(() => {
       const l = loadUserLevel();
@@ -28,7 +32,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
       }, 2000);
       return () => clearInterval(interval);
   }, [currentAmoud]);
-
+  
   return (
     <div className="min-h-screen flex flex-col font-sans transition-colors duration-300 overflow-x-hidden">
       {/* Header */}
@@ -51,16 +55,38 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
                 </div>
             </div>
             
-            {/* Amoud Indicator */}
-            <div 
-                onClick={() => onTabChange('levels')}
-                className="flex items-center gap-2 bg-gradient-to-l from-indigo-500 to-blue-600 text-white px-3 py-1.5 rounded-full shadow-md shadow-indigo-500/20 cursor-pointer active:scale-95 transition-transform"
-            >
-                <Map className="w-4 h-4" />
-                <span className="text-xs font-bold">عمود {toPersianDigits(currentAmoud)}</span>
+            <div className="flex items-center gap-2">
+                {/* Settings Icon */}
+                <button 
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="bg-gray-100 dark:bg-gray-800 p-2 rounded-lg transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+                >
+                    <Settings className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                </button>
+                
+                {/* Login/Signup Icon */}
+                <button 
+                  onClick={() => setIsAuthOpen(true)}
+                  className="bg-gradient-to-r from-primary-600 to-primary-500 p-2 rounded-lg transition-colors hover:from-primary-700 hover:to-primary-600 shadow-md shadow-primary-500/30"
+                >
+                    <LogIn className="w-5 h-5 text-white" />
+                </button>
             </div>
         </div>
       </header>
+
+      {/* Modals */}
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)}
+        isDark={isDark}
+        toggleTheme={toggleTheme}
+      />
+      
+      <AuthModal 
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+      />
 
       {/* Main Content */}
       <main className="flex-1 max-w-3xl mx-auto w-full p-4 pb-24">

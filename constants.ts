@@ -1,34 +1,48 @@
 
 
 
-import { DeedDefinition, SinDefinition, QadaCounts, WorkoutDefinition } from './types';
+import { DeedDefinition, SinDefinition, QadaCounts, WorkoutDefinition, DeedCategory } from './types';
+
+export const DEED_CATEGORIES: { id: DeedCategory; title: string; icon: string }[] = [
+    { id: 'wajib', title: 'واجبات و محرمات', icon: '🕌' },
+    { id: 'mustahab', title: 'مستحبات و عبادات', icon: '🤲' },
+    { id: 'quran', title: 'قرآن', icon: '📖' },
+    { id: 'dua', title: 'ادعیه', icon: '✨' },
+    { id: 'moraqeba', title: 'مراقبه‌های اخلاقی', icon: '💎' },
+    { id: 'golden', title: 'اعمال طلایی', icon: '⭐' },
+    { id: 'study', title: 'درسی و آموزشی', icon: '📚' },
+    { id: 'work', title: 'کار و شغل', icon: '💼' },
+    { id: 'sport', title: 'ورزش و سلامت', icon: '🏃' },
+    { id: 'daily', title: 'برنامه روزمره', icon: '📅' },
+    { id: 'other', title: 'سایر', icon: '📌' },
+];
 
 export const DEEDS: DeedDefinition[] = [
   // Binary Deeds (0 or 100)
-  { id: 'ziyarat_ashura', title: 'زیارت عاشورا', type: 'binary' },
-  { id: 'ziyarat_ale_yasin', title: 'زیارت آل یاسین', type: 'binary' },
-  { id: 'surah_fath', title: 'سوره فتح', type: 'binary' },
-  { id: 'surah_dhariyat', title: 'سوره ذاریات', type: 'binary' },
-  { id: 'surah_waqiah', title: 'سوره واقعه', type: 'binary' },
-  { id: 'surah_yasin', title: 'سوره یس', type: 'binary' },
+  { id: 'ziyarat_ashura', title: 'زیارت عاشورا', type: 'binary', category: 'dua' },
+  { id: 'ziyarat_ale_yasin', title: 'زیارت آل یاسین', type: 'binary', category: 'dua' },
+  { id: 'surah_fath', title: 'سوره فتح', type: 'binary', category: 'quran' },
+  { id: 'surah_dhariyat', title: 'سوره ذاریات', type: 'binary', category: 'quran' },
+  { id: 'surah_waqiah', title: 'سوره واقعه', type: 'binary', category: 'quran' },
+  { id: 'surah_yasin', title: 'سوره یس', type: 'binary', category: 'quran' },
   
-  // Scalar Deeds (0 to 100)
-  { id: 'gaze_control', title: 'کنترل نگاه (نگاه نکردن به نامحرم)', type: 'scalar' },
-  { id: 'truthfulness', title: 'صداقت (نگفتن دروغ)', type: 'scalar' },
-  { id: 'sleep_time', title: 'خوابیدن سر زمان مناسب', type: 'scalar' },
+  // Scalar Deeds (0 to 100) - Moraqeba
+  { id: 'gaze_control', title: 'کنترل نگاه (نگاه نکردن به نامحرم)', type: 'scalar', category: 'moraqeba' },
+  { id: 'truthfulness', title: 'صداقت (نگفتن دروغ)', type: 'scalar', category: 'moraqeba' },
+  { id: 'sleep_time', title: 'خوابیدن سر زمان مناسب', type: 'scalar', category: 'daily' },
 
-  // Prayer Deeds (Binary + Qada check)
-  { id: 'prayer_fajr', title: 'نماز اول وقت صبح', type: 'prayer' },
-  { id: 'prayer_dhuhr', title: 'نماز اول وقت ظهر', type: 'prayer' },
-  { id: 'prayer_maghrib', title: 'نماز اول وقت شب', type: 'prayer' },
+  // Prayer Deeds (Binary + Qada check) - Wajib
+  { id: 'prayer_fajr', title: 'نماز اول وقت صبح', type: 'prayer', category: 'wajib' },
+  { id: 'prayer_dhuhr', title: 'نماز اول وقت ظهر', type: 'prayer', category: 'wajib' },
+  { id: 'prayer_maghrib', title: 'نماز اول وقت شب', type: 'prayer', category: 'wajib' },
 
   // Golden Deeds (Bonus Score)
-  { id: 'golden_night_prayer', title: 'نماز شب', type: 'golden' }, // +20, 2 Stars
-  { id: 'golden_father_hand', title: 'بوسیدن دست پدر', type: 'golden' }, // +20, 2 Stars
-  { id: 'golden_mother_hand', title: 'بوسیدن دست مادر', type: 'golden' }, // +20, 2 Stars
-  { id: 'golden_salawat', title: '۱۰۰ تا صلوات', type: 'golden' }, // +10
-  { id: 'golden_parents', title: 'خوشحال کردن پدر و مادر', type: 'golden' }, // +10
-  { id: 'golden_others', title: 'خوشحال کردن دیگران', type: 'golden' }, // +10
+  { id: 'golden_night_prayer', title: 'نماز شب', type: 'golden', category: 'golden' }, // +20, 2 Stars
+  { id: 'golden_father_hand', title: 'بوسیدن دست پدر', type: 'golden', category: 'golden' }, // +20, 2 Stars
+  { id: 'golden_mother_hand', title: 'بوسیدن دست مادر', type: 'golden', category: 'golden' }, // +20, 2 Stars
+  { id: 'golden_salawat', title: '۱۰۰ تا صلوات', type: 'golden', category: 'mustahab' }, // +10
+  { id: 'golden_parents', title: 'خوشحال کردن پدر و مادر', type: 'golden', category: 'mustahab' }, // +10
+  { id: 'golden_others', title: 'خوشحال کردن دیگران', type: 'golden', category: 'mustahab' }, // +10
 ];
 
 export const WORKOUTS: WorkoutDefinition[] = [

@@ -1,11 +1,11 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { DEEDS, getTodayStr, toPersianDigits } from '../constants';
-import { DailyRecord, DeedDefinition, DeedType } from '../types';
-import { saveRecord, getRecord, loadSettings, saveCustomDeed, removeCustomDeed, loadQada, saveQada } from '../services/storage';
+import { DEEDS, DEED_CATEGORIES, getTodayStr, toPersianDigits } from '../constants';
+import { DailyRecord, DeedDefinition, DeedType, DeedCategory } from '../types';
+import { saveRecord, getRecord, loadSettings, saveCustomDeed, removeCustomDeed, loadQada, saveQada, saveDailyLayout, toggleHideDeed } from '../services/storage';
 import { DeedInput } from '../components/DeedInput';
 import { SinInput } from '../components/SinInput';
-import { Save, ChevronLeft, ChevronRight, Lock, Star, Plus, X, AlertCircle } from 'lucide-react';
+import { Save, ChevronLeft, ChevronRight, Lock, Star, Plus, X, AlertCircle, GripVertical, Eye, EyeOff, Settings, LayoutGrid } from 'lucide-react';
 
 interface DashboardProps {
   initialDate?: string;
@@ -28,6 +28,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addModalType, setAddModalType] = useState<DeedType>('binary');
   const [newDeedTitle, setNewDeedTitle] = useState('');
+  const [newDeedCategory, setNewDeedCategory] = useState<DeedCategory>('other');
+  
+  // Elementor-style Layout State
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [hiddenDeeds, setHiddenDeeds] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<DeedCategory | 'all'>('all');
 
   // Generate random star positions once on mount (stable across renders)
   const randomStars = useMemo(() => {
@@ -52,6 +58,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
     // Load Custom Deeds from Settings
     const settings = loadSettings();
     setCustomDeeds(settings.customDeeds);
+    setHiddenDeeds(settings.hiddenDeeds || []);
 
     const record = getRecord(date);
     if (record) {
@@ -99,7 +106,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
         id,
         title: newDeedTitle,
         type: addModalType,
-        isCustom: true
+        category: newDeedCategory,
+        isCustom: true,
+        weight: 10
     };
     
     // Save to persistence
@@ -116,6 +125,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
       const newScores = { ...scores };
       delete newScores[id];
       setScores(newScores);
+  };
+
+  const handleToggleHideDeed = (id: string) => {
+      const newHidden = toggleHideDeed(id);
+      setHiddenDeeds(newHidden);
   };
   // ----------------------
 
@@ -319,9 +333,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ initialDate, onDateChange 
                       value={newDeedTitle}
                       onChange={(e) => setNewDeedTitle(e.target.value)}
                       placeholder="عنوان عمل را وارد کنید..."
-                      className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none mb-6"
+                      className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none mb-4"
                       autoFocus
                   />
+
+                  <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">دسته‌بندی:</label>
+                      <select 
+                          value={newDeedCategory}
+                          onChange={(e) => setNewDeedCategory(e.target.value as DeedCategory)}
+                          className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                      >
+                          {DEED_CATEGORIES.map(cat => (
+                              <option key={cat.id} value={cat.id}>{cat.icon} {cat.title}</option>
+                          ))}
+                      </select>
+                  </div>
                   
                   <div className="flex gap-3">
                       <button 

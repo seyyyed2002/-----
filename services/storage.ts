@@ -192,15 +192,19 @@ export const loadSettings = (): AppSettings => {
     try {
         const data = getFromMemory(APP_SETTINGS_KEY);
         if (data === null) {
-            return { customDeeds: [] };
+            return { customDeeds: [], dailyLayout: [], hiddenDeeds: [] };
         }
         if (!Array.isArray(data.customDeeds)) {
-            return { customDeeds: [] };
+            return { customDeeds: [], dailyLayout: data.dailyLayout || [], hiddenDeeds: data.hiddenDeeds || [] };
         }
-        return data;
+        return { 
+            customDeeds: data.customDeeds, 
+            dailyLayout: data.dailyLayout || [], 
+            hiddenDeeds: data.hiddenDeeds || [] 
+        };
     } catch (err) {
         console.error("Could not load settings", err);
-        return { customDeeds: [] };
+        return { customDeeds: [], dailyLayout: [], hiddenDeeds: [] };
     }
 };
 
@@ -239,6 +243,45 @@ export const removeCustomDeed = (deedId: string) => {
         return newSettings.customDeeds;
     } catch (err) {
         console.error("Could not remove setting", err);
+        return [];
+    }
+};
+
+// New functions for Elementor-style layout management
+export const saveDailyLayout = (layout: string[]) => {
+    try {
+        const settings = loadSettings();
+        const newSettings = {
+            ...settings,
+            dailyLayout: layout
+        };
+        saveToMemory(APP_SETTINGS_KEY, newSettings);
+        upsertToSupabase(APP_SETTINGS_KEY, newSettings);
+        return layout;
+    } catch (err) {
+        console.error("Could not save layout", err);
+        return [];
+    }
+};
+
+export const toggleHideDeed = (deedId: string) => {
+    try {
+        const settings = loadSettings();
+        const hiddenDeeds = settings.hiddenDeeds || [];
+        const isHidden = hiddenDeeds.includes(deedId);
+        const newHiddenDeeds = isHidden 
+            ? hiddenDeeds.filter(id => id !== deedId)
+            : [...hiddenDeeds, deedId];
+        
+        const newSettings = {
+            ...settings,
+            hiddenDeeds: newHiddenDeeds
+        };
+        saveToMemory(APP_SETTINGS_KEY, newSettings);
+        upsertToSupabase(APP_SETTINGS_KEY, newSettings);
+        return newHiddenDeeds;
+    } catch (err) {
+        console.error("Could not toggle hide deed", err);
         return [];
     }
 };

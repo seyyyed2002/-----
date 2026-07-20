@@ -1,11 +1,14 @@
 
 export type DeedType = 'binary' | 'scalar' | 'prayer' | 'golden';
+export type DeedCategory = 'wajib' | 'mustahab' | 'quran' | 'dua' | 'moraqeba' | 'golden' | 'study' | 'work' | 'sport' | 'daily' | 'other';
 
 export interface DeedDefinition {
   id: string;
   title: string;
   type: DeedType;
+  category?: DeedCategory; // دسته‌بندی عمل
   isCustom?: boolean; // To identify user-added deeds
+  weight?: number; // وزن امتیاز (پیش‌فرض 10)
 }
 
 export interface SinDefinition {
@@ -34,6 +37,9 @@ export interface DailyRecord {
 
 export interface AppSettings {
   customDeeds: DeedDefinition[];
+  // New fields for Elementor-style layout
+  dailyLayout?: string[]; // Order of deed IDs on the daily page
+  hiddenDeeds?: string[]; // Deed IDs that user chose to hide (except wajib)
 }
 
 export interface WorkoutSettings {

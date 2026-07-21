@@ -1,6 +1,6 @@
 
-import { DailyRecord, AppSettings, DeedDefinition, QadaCounts, WorkoutSettings, WorkoutDefinition, UserLevel, Challenge } from '../types';
-import { APP_STORAGE_KEY, APP_SETTINGS_KEY, APP_QADA_KEY, APP_WORKOUT_PR_KEY, APP_WORKOUT_SETTINGS_KEY, APP_CHALLENGES_KEY, DEEDS } from '../constants';
+import { DailyRecord, AppSettings, DeedDefinition, QadaCounts, WorkoutSettings, WorkoutDefinition, UserLevel, Challenge, ActiveDeed } from '../types';
+import { APP_STORAGE_KEY, APP_SETTINGS_KEY, APP_QADA_KEY, APP_WORKOUT_PR_KEY, APP_WORKOUT_SETTINGS_KEY, APP_CHALLENGES_KEY, DEEDS, DEFAULT_ACTIVE_DEEDS } from '../constants';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const APP_LEVEL_KEY = 'muhasabah_user_level';
@@ -192,12 +192,13 @@ export const loadSettings = (): AppSettings => {
     try {
         const data = getFromMemory(APP_SETTINGS_KEY);
         if (data === null || typeof data !== 'object') {
-            return { customDeeds: [] };
+            return { customDeeds: [], activeDeeds: DEFAULT_ACTIVE_DEEDS };
         }
 
         return {
             ...data,
             customDeeds: Array.isArray(data.customDeeds) ? data.customDeeds : [],
+            activeDeeds: Array.isArray(data.activeDeeds) ? data.activeDeeds : DEFAULT_ACTIVE_DEEDS,
             deedPreferences: data.deedPreferences && typeof data.deedPreferences === 'object'
                 ? data.deedPreferences
                 : {},
@@ -205,8 +206,15 @@ export const loadSettings = (): AppSettings => {
         };
     } catch (err) {
         console.error("Could not load settings", err);
-        return { customDeeds: [] };
+        return { customDeeds: [], activeDeeds: DEFAULT_ACTIVE_DEEDS };
     }
+};
+
+export const saveActiveDeeds = (activeDeeds: ActiveDeed[]): AppSettings => {
+    const settings = loadSettings();
+    const updatedSettings = { ...settings, activeDeeds };
+    saveSettings(updatedSettings);
+    return updatedSettings;
 };
 
 export const saveSettings = (settings: AppSettings): AppSettings => {

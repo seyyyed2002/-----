@@ -7,9 +7,10 @@ interface SinInputProps {
   selectedSins: string[];
   onChange: (sins: string[]) => void;
   disabled?: boolean;
+  sinPenalty?: number;
 }
 
-export const SinInput: React.FC<SinInputProps> = ({ selectedSins, onChange, disabled }) => {
+export const SinInput: React.FC<SinInputProps> = ({ selectedSins, onChange, disabled, sinPenalty = 10 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -58,7 +59,7 @@ export const SinInput: React.FC<SinInputProps> = ({ selectedSins, onChange, disa
           <h3 className="font-bold text-sm">محاسبه خطاها و گناهان</h3>
         </div>
         <span className="text-xs font-medium bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 px-2 py-1 rounded-lg">
-          هر خطا ۱۰ امتیاز منفی
+          هر خطا {toPersianDigits(sinPenalty)} امتیاز منفی
         </span>
       </div>
 
@@ -140,7 +141,7 @@ export const SinInput: React.FC<SinInputProps> = ({ selectedSins, onChange, disa
         {selectedSins.length > 0 && (
             <div className="flex justify-end border-t border-gray-50 dark:border-gray-700 pt-2">
                 <span className="text-xs font-bold text-red-500 dark:text-red-400">
-                    مجموع کسر امتیاز: {toPersianDigits(selectedSins.length * 10)}-
+                    مجموع کسر امتیاز: {toPersianDigits(selectedSins.length * sinPenalty)}-
                 </span>
             </div>
         )}

@@ -13,6 +13,8 @@ interface DeedInputProps {
   customTitle?: string;
   onCustomTitleChange?: (title: string) => void;
   onDelete?: () => void;
+  scoringSystem?: 'weighted_average' | 'points_sum';
+  deedWeight?: number;
 }
 
 const CustomSlider = ({ 
@@ -74,14 +76,16 @@ export const DeedInput: React.FC<DeedInputProps> = ({
   disabled,
   customTitle,
   onCustomTitleChange,
-  onDelete
+  onDelete,
+  scoringSystem,
+  deedWeight
 }) => {
   // Handle Golden Deeds
   if (deed.type === 'golden') {
     const isDone = value === 100;
     // Determine bonus points
     const isDoubleBonus = deed.id === 'golden_night_prayer' || deed.id === 'golden_father_hand' || deed.id === 'golden_mother_hand';
-    const bonusPoints = isDoubleBonus ? 20 : 10;
+    const bonusPoints = deedWeight !== undefined ? deedWeight : (isDoubleBonus ? 20 : 10);
 
     return (
         <div className={`p-4 rounded-2xl border shadow-sm flex items-center justify-between transition-colors duration-300 group ${
@@ -142,17 +146,24 @@ export const DeedInput: React.FC<DeedInputProps> = ({
     const isDone = value === 100;
     return (
       <div className={`bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between transition-colors ${disabled ? 'opacity-80' : 'hover:border-primary-200 dark:hover:border-primary-800'}`}>
-        <div className="flex items-center gap-2">
-            <span className="text-gray-700 dark:text-gray-200 font-medium">{deed.title}</span>
-            {deed.isCustom && !disabled && onDelete && (
-                <button 
-                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                    className="text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors p-1.5 z-20 relative flex-shrink-0"
-                    title="حذف این مورد"
-                >
-                    <Trash2 className="w-4 h-4" />
-                </button>
-            )}
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center gap-2">
+              <span className="text-gray-700 dark:text-gray-200 font-medium truncate">{deed.title}</span>
+              {deed.isCustom && !disabled && onDelete && (
+                  <button 
+                      onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                      className="text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors p-1.5 z-20 relative flex-shrink-0"
+                      title="حذف این مورد"
+                  >
+                      <Trash2 className="w-4 h-4" />
+                  </button>
+              )}
+          </div>
+          {deedWeight !== undefined && (
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+              {scoringSystem === 'points_sum' ? `${toPersianDigits(deedWeight)}+ امتیاز` : `وزن: ${toPersianDigits(deedWeight)}`}
+            </span>
+          )}
         </div>
         <button
           onClick={() => !disabled && onChange(isDone ? 0 : 100)}
@@ -181,18 +192,25 @@ export const DeedInput: React.FC<DeedInputProps> = ({
       } ${disabled ? 'opacity-80' : ''}`}>
         
         <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-                <span className={`font-medium ${isQada ? 'text-red-800 dark:text-red-200' : 'text-gray-700 dark:text-gray-200'}`}>
-                {deed.title}
-                </span>
-                {deed.isCustom && !disabled && onDelete && (
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                        className="text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors p-1.5 z-20 relative flex-shrink-0"
-                        title="حذف این مورد"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
+            <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2">
+                    <span className={`font-medium truncate ${isQada ? 'text-red-800 dark:text-red-200' : 'text-gray-700 dark:text-gray-200'}`}>
+                    {deed.title}
+                    </span>
+                    {deed.isCustom && !disabled && onDelete && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                            className="text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors p-1.5 z-20 relative flex-shrink-0"
+                            title="حذف این مورد"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
+                {deedWeight !== undefined && (
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                    {scoringSystem === 'points_sum' ? `تا ${toPersianDigits(deedWeight)}+ امتیاز` : `وزن: ${toPersianDigits(deedWeight)}`}
+                  </span>
                 )}
             </div>
             
@@ -252,17 +270,24 @@ export const DeedInput: React.FC<DeedInputProps> = ({
   return (
     <div className={`bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col gap-3 transition-colors ${disabled ? 'opacity-80' : 'hover:border-primary-200 dark:hover:border-primary-800'}`}>
       <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-            <span className="text-gray-700 dark:text-gray-200 font-medium">{deed.title}</span>
-            {deed.isCustom && !disabled && onDelete && (
-                <button 
-                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                    className="text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors p-1.5 z-20 relative flex-shrink-0"
-                    title="حذف این مورد"
-                >
-                    <Trash2 className="w-4 h-4" />
-                </button>
-            )}
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center gap-2">
+              <span className="text-gray-700 dark:text-gray-200 font-medium truncate">{deed.title}</span>
+              {deed.isCustom && !disabled && onDelete && (
+                  <button 
+                      onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                      className="text-red-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full transition-colors p-1.5 z-20 relative flex-shrink-0"
+                      title="حذف این مورد"
+                  >
+                      <Trash2 className="w-4 h-4" />
+                  </button>
+              )}
+          </div>
+          {deedWeight !== undefined && (
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+              {scoringSystem === 'points_sum' ? `تا ${toPersianDigits(deedWeight)}+ امتیاز` : `وزن: ${toPersianDigits(deedWeight)}`}
+            </span>
+          )}
         </div>
         <span className={`text-sm font-bold px-2 py-0.5 rounded-md ${
             value >= 80 ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300' :

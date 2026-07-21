@@ -1,11 +1,47 @@
 
 export type DeedType = 'binary' | 'scalar' | 'prayer' | 'golden';
 
+export type DeedCategory =
+  | 'prayers_obligatory'   // نمازهای واجب (قفل شده)
+  | 'prayers_optional'     // نمازهای مستحب
+  | 'duas'                 // ادعیه و اذکار
+  | 'quran'               // سوره‌های قرآن
+  | 'ziyarat'             // زیارات
+  | 'golden'              // اعمال طلایی
+  | 'ethical'             // مراقبه‌های اخلاقی
+  | 'charity'             // کارهای مستحب و خیر
+  | 'knowledge'           // علم و خودسازی
+  | 'physical'            // ریاضت بدنی و سلامت
+  | 'sins'                // گناهان (قفل شده)
+  | 'custom';             // سفارشی کاربر
+
+export interface DeedLibraryItem {
+  id: string;
+  title: string;
+  subtitle?: string;       // توضیح کوتاه
+  category: DeedCategory;
+  defaultType: 'binary' | 'scalar';
+  defaultPoints: number;   // امتیاز پیشنهادی
+  isBuiltIn: boolean;      // از قبل تعریف شده در کتابخانه
+}
+
+export interface ActiveDeed {
+  id: string;              // unique id برای این عمل در دفتر کاربر
+  libraryId: string;       // اشاره به DeedLibraryItem.id یا 'custom_' برای سفارشی
+  title: string;           // عنوان (می‌تواند توسط کاربر تغییر کند)
+  category: DeedCategory;
+  type: 'binary' | 'scalar';
+  points: number;          // امتیاز تنظیم شده توسط کاربر
+  isLocked: boolean;       // true برای نماز واجب، گناهان، گزارش
+  sortOrder: number;       // ترتیب نمایش
+}
+
 export interface DeedDefinition {
   id: string;
   title: string;
   type: DeedType;
-  isCustom?: boolean; // To identify user-added deeds
+  isCustom?: boolean;
+  isActive?: boolean;
 }
 
 export interface SinDefinition {
@@ -21,48 +57,64 @@ export interface WorkoutDefinition {
 }
 
 export interface DailyRecord {
-  date: string; // ISO string YYYY-MM-DD
-  scores: Record<string, number>; // map deedId to score
-  sins?: string[]; // Array of Sin IDs (can contain duplicates)
-  custom_titles?: Record<string, string>; // map deedId to custom title (legacy for golden_custom)
+  date: string;
+  scores: Record<string, number>;
+  sins?: string[];
+  custom_titles?: Record<string, string>;
   report: string;
   total_average: number;
-  performed_qada?: Record<string, number>; // map qadaKey (fajr, etc) to count performed that day
-  workouts?: Record<string, number>; // map workoutId to count/value
-  updated_at: number; // Unix timestamp for local storage, will be converted to ISO string for Supabase
+  performed_qada?: Record<string, number>;
+  workouts?: Record<string, number>;
+  updated_at: number;
+}
+
+export interface DeedPreference {
+  title?: string;
+  isActive?: boolean;
 }
 
 export interface AppSettings {
+  // سیستم جدید: دفتر مراقبه شخصی
+  activeDeeds?: ActiveDeed[];
+  
+  // سیستم قدیمی (برای backward compatibility)
   customDeeds: DeedDefinition[];
+  deedPreferences?: Record<string, DeedPreference>;
+  deedOrder?: string[];
+  
+  // تنظیمات امتیازدهی
+  scoringSystem?: 'weighted_average' | 'points_sum';
+  targetPoints?: number;
+  deedWeights?: Record<string, number>;
+  sinPenalty?: number;
+  goldenBonus?: Record<string, number>;
 }
 
 export interface WorkoutSettings {
     customWorkouts: WorkoutDefinition[];
 }
 
-// New Interface for Leveling System
 export interface UserLevel {
-    currentAmoud: number; // 1 to 100
-    lastCheckDate: string; // ISO Date of the last time level up was processed
+    currentAmoud: number;
+    lastCheckDate: string;
 }
 
-// Interface for Challenges (Chellah)
 export interface Challenge {
     id: string;
     title: string;
     totalDays: number;
-    startDate: string; // YYYY-MM-DD
-    completedDates: string[]; // List of YYYY-MM-DD that were checked
+    startDate: string;
+    completedDates: string[];
     status: 'active' | 'success' | 'failed';
 }
 
 export interface AppState {
-  records: Record<string, DailyRecord>; // map date string to record
+  records: Record<string, DailyRecord>;
   currentDate: string;
 }
 
 export interface CalendarDay {
-  date: string; // YYYY-MM-DD
+  date: string;
   isCurrentMonth: boolean;
   record?: DailyRecord;
 }

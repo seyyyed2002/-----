@@ -1,6 +1,6 @@
 
-import { DailyRecord, AppSettings, DeedDefinition, QadaCounts, WorkoutSettings, WorkoutDefinition, UserLevel, Challenge } from '../types';
-import { APP_STORAGE_KEY, APP_SETTINGS_KEY, APP_QADA_KEY, APP_WORKOUT_PR_KEY, APP_WORKOUT_SETTINGS_KEY, APP_CHALLENGES_KEY } from '../constants';
+import { DailyRecord, AppSettings, DeedDefinition, QadaCounts, WorkoutSettings, WorkoutDefinition, UserLevel, Challenge, ActiveDeed } from '../types';
+import { APP_STORAGE_KEY, APP_SETTINGS_KEY, APP_QADA_KEY, APP_WORKOUT_PR_KEY, APP_WORKOUT_SETTINGS_KEY, APP_CHALLENGES_KEY, DEEDS, DEFAULT_ACTIVE_DEEDS } from '../constants';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const APP_LEVEL_KEY = 'muhasabah_user_level';
@@ -187,35 +187,156 @@ export const getRecord = (date: string): DailyRecord | null => {
     return data[date] || null;
 };
 
-// Settings (Custom Deeds)
+// Settings (Daily deed configuration)
 export const loadSettings = (): AppSettings => {
     try {
         const data = getFromMemory(APP_SETTINGS_KEY);
-        if (data === null) {
-            return { customDeeds: [] };
+        if (data === null || typeof data !== 'object') {
+            return { customDeeds: [], activeDeeds: DEFAULT_ACTIVE_DEEDS };
         }
-        if (!Array.isArray(data.customDeeds)) {
-            return { customDeeds: [] };
-        }
-        return data;
+
+        return {
+            ...data,
+            customDeeds: Array.isArray(data.customDeeds) ? data.customDeeds : [],
+            activeDeeds: Array.isArray(data.activeDeeds) ? data.activeDeeds : DEFAULT_ACTIVE_DEEDS,
+            deedPreferences: data.deedPreferences && typeof data.deedPreferences === 'object'
+                ? data.deedPreferences
+                : {},
+            deedOrder: Array.isArray(data.deedOrder) ? data.deedOrder : []
+        };
     } catch (err) {
         console.error("Could not load settings", err);
-        return { customDeeds: [] };
+        return { customDeeds: [], activeDeeds: DEFAULT_ACTIVE_DEEDS };
     }
+};
+
+export const saveActiveDeeds = (activeDeeds: ActiveDeed[]): AppSettings => {
+    const settings = loadSettings();
+    const updatedSettings = { ...settings, activeDeeds };
+    saveSettings(updatedSettings);
+    return updatedSettings;
+};
+
+export const saveSettings = (settings: AppSettings): AppSettings => {
+    saveToMemory(APP_SETTINGS_KEY, settings);
+    upsertToSupabase(APP_SETTINGS_KEY, settings);
+    return settings;
+};
+
+export const getConfiguredDeeds = (
+    settings: AppSettings = loadSettings(),
+    includeInactive = false
+): DeedDefinition[] => {
+    const customDeeds = (settings.customDeeds || []).map(deed => ({
+        ...deed,
+        isCustom: true
+    }));
+    const allDeeds = [...DEEDS, ...customDeeds];
+    const deedById = new Map(allDeeds.map(deed => [deed.id, deed]));
+    const orderedIds = [
+        ...(settings.deedOrder || []).filter(id => deedById.has(id)),
+        ...allDeeds.map(deed => deed.id).filter(id => !(settings.deedOrder || []).includes(id))
+    ];
+
+    const configured = orderedIds.map(id => {
+        const deed = deedById.get(id)!;
+        const preference = settings.deedPreferences?.[id];
+        const preferredTitle = preference?.title?.trim();
+
+        return {
+            ...deed,
+            title: preferredTitle || deed.title,
+            isActive: preference?.isActive !== false
+        };
+    });
+
+    return includeInactive ? configured : configured.filter(deed => deed.isActive !== false);
+};
+
+export const DEED_SNAPSHOT_KEY = '__daily_deeds_v1';
+
+export const serializeDeedSnapshot = (deeds: DeedDefinition[]): string => JSON.stringify(
+    deeds.map(({ id, title, type, isCustom }) => ({ id, title, type, isCustom }))
+);
+
+export const getRecordDeeds = (
+    record: DailyRecord,
+    configuredDeeds: DeedDefinition[] = getConfiguredDeeds(loadSettings(), true)
+): DeedDefinition[] => {
+    const snapshot = record.custom_titles?.[DEED_SNAPSHOT_KEY];
+    if (snapshot) {
+        try {
+            const parsed = JSON.parse(snapshot);
+            if (Array.isArray(parsed)) {
+                const validTypes = new Set(['binary', 'scalar', 'prayer', 'golden']);
+                const validDeeds = parsed.filter(deed =>
+                    deed &&
+                    typeof deed.id === 'string' &&
+                    typeof deed.title === 'string' &&
+                    validTypes.has(deed.type)
+                ) as DeedDefinition[];
+
+                if (validDeeds.length === parsed.length) {
+                    return validDeeds.map(deed => ({ ...deed, isActive: true }));
+                }
+            }
+        } catch (err) {
+            console.warn('Could not parse daily deed snapshot', err);
+        }
+    }
+
+    // Before deed customization existed, all defaults were active. Custom deed IDs
+    // contain their creation timestamp, allowing a conservative legacy fallback.
+    const recordEnd = new Date(`${record.date}T23:59:59.999`).getTime();
+    return configuredDeeds.filter(deed => {
+        if (!deed.isCustom) return true;
+        if (Object.prototype.hasOwnProperty.call(record.scores || {}, deed.id)) return true;
+
+        const timestampMatch = deed.id.match(/_(\d{10,})$/);
+        return timestampMatch ? Number(timestampMatch[1]) <= recordEnd : false;
+    });
+};
+
+export const saveDeedConfiguration = (deeds: DeedDefinition[]): AppSettings => {
+    const settings = loadSettings();
+    const defaultDeedsById = new Map(DEEDS.map(deed => [deed.id, deed]));
+    const validDeeds = deeds.filter(deed => deed.id && deed.title.trim());
+    const customDeeds = validDeeds
+        .filter(deed => !defaultDeedsById.has(deed.id))
+        .map(({ isActive, ...deed }) => ({ ...deed, title: deed.title.trim(), isCustom: true }));
+    const deedPreferences = validDeeds.reduce<NonNullable<AppSettings['deedPreferences']>>((result, deed) => {
+        const defaultDeed = defaultDeedsById.get(deed.id);
+        const preference = {
+            ...(defaultDeed && deed.title.trim() !== defaultDeed.title ? { title: deed.title.trim() } : {}),
+            ...(deed.isActive === false ? { isActive: false } : {})
+        };
+
+        if (Object.keys(preference).length > 0) {
+            result[deed.id] = preference;
+        }
+        return result;
+    }, {});
+
+    return saveSettings({
+        ...settings,
+        customDeeds,
+        deedPreferences,
+        deedOrder: validDeeds.map(deed => deed.id)
+    });
 };
 
 export const saveCustomDeed = (deed: DeedDefinition) => {
     try {
         const settings = loadSettings();
+        const currentOrder = settings.deedOrder?.length
+            ? settings.deedOrder
+            : getConfiguredDeeds(settings, true).map(item => item.id);
         const newSettings = {
             ...settings,
-            customDeeds: [...(settings.customDeeds || []), deed]
+            customDeeds: [...(settings.customDeeds || []), deed],
+            deedOrder: [...currentOrder, deed.id]
         };
-        saveToMemory(APP_SETTINGS_KEY, newSettings);
-
-        // Background Sync
-        upsertToSupabase(APP_SETTINGS_KEY, newSettings);
-
+        saveSettings(newSettings);
         return newSettings.customDeeds;
     } catch (err) {
         console.error("Could not save setting", err);
